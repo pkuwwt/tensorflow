@@ -6,9 +6,6 @@ XLA 的 `Shape` 协议缓存（proto）
 
 ## 术语、符号和约定
 
-*   The rank of an array is equal to the number of dimensions. The *true rank*
-    of an array is the number of dimensions which have a size greater than 1.
-
 *   一个数组的秩等于维度的数目。一个数组的*真秩*则为大于 1 的那些维度的数目。
 
 *   对于一个 `N` 维数组，维度的取值维 `0` 到 `N-1`。这些维度数字只不过是出于方便性而给出的一些比较任意的标签。
@@ -21,21 +18,21 @@ XLA 的 `Shape` 协议缓存（proto）
 
 *   二维、三维和四维数组通常为特定的字母来表示每个维度。比如，对于二维数组：
 
-    *   0 维： `y`
-    *   1 维： `x`
+    * 0 维： `y`
+    * 1 维： `x`
 
     对于三维数组：
 
-    *   0 维： `z`
-    *   1 维： `y`
-    *   2 维： `x`
+    * 0 维： `z`
+    * 1 维： `y`
+    * 2 维： `x`
 
     对于四维数组：
 
-    *   0 维： `p`
-    *   1 维： `z`
-    *   2 维： `y`
-    *   3 维： `x`
+    * 0 维： `p`
+    * 1 维： `z`
+    * 2 维： `y`
+    * 3 维： `x`
 
 *   XLA API 中的函数接收的维度参数是按照升序排列的，这作为 `initializer_list` 传入的维度顺序是一致的，比如：
   
