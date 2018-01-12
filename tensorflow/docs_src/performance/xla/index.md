@@ -1,50 +1,34 @@
-# XLA Overview
+# XLA 概述
 
-> Note: XLA is experimental and considered alpha.  Most use cases will not
-> see improvements in performance (speed or decreased memory usage). We have
-> released XLA early so the Open Source Community can contribute to its
-> development, as well as create a path for integration with hardware
-> accelerators.
+> 注意： XLA 暂时是实验性的，仍处于 alpha 版本。而且大部分用例并不会带来
+> 性能（提高速度或减少内存使用量）上的提高。我们这么早就发布了 XLA，这样的话，
+> 开源社区就可以为它的开发贡献力量了，而且有助于走出一条与硬件加速器整合之路。
 
-XLA (Accelerated Linear Algebra) is a domain-specific compiler for linear
-algebra that optimizes TensorFlow computations. The results are improvements in
-speed, memory usage, and portability on server and mobile platforms. Initially,
-most users will not see large benefits from XLA, but are welcome to experiment
-by using XLA via @{$jit$just-in-time (JIT) compilation} or @{$tfcompile$ahead-of-time (AOT) compilation}. Developers targeting new hardware accelerators are
-especially encouraged to try out XLA.
+XLA （加速线性代数）是一种线性代数的专用编译器，可用于优化 TensorFlow 的计算。
+其目标旨在提高速度、内存使用量以及对服务器和移动平台的可移植性。一开始，大
+部分用户将不会从 XLA 中得到太大的好处，但是我们欢迎大家通过 @{$jit$just-in-time (JIT) 编译} 或 @{$tfcompile$ahead-of-time (AOT) 编译} 
+来使用 XLA 做实验。特别是那些专注于新硬件加速器的开发者，尤其应该试一试 XLA。
 
-The XLA framework is experimental and in active development. In particular,
-while it is unlikely that the semantics of existing operations will change, it
-is expected that more operations will be added to cover important use cases. The
-team welcomes feedback from the community about missing functionality and
-community contributions via GitHub.
+XLA 框架是实验性的，且处于活跃的开发状态。因而，虽然已有操作的语义不太可能发生改变，
+但 XLA 不同，可以想见 XLA 中会不断加入更多操作，以覆盖更多重要的用例。XLA 的开发团队
+欢迎来自于社区的任何反馈，包括缺失的功能，以及通过 GitHub 提交的社区贡献。
 
-## Why did we build XLA?
+## 我们为什么推出 XLA？
 
-We had several objectives for XLA to work with TensorFlow:
+让 TensorFlow 用上 XLA，我们追求多个目标：
 
-*   *Improve execution speed.* Compile subgraphs to reduce the execution time of
-    short-lived Ops to eliminate overhead from the TensorFlow runtime, fuse
-    pipelined operations to reduce memory overhead, and specialize to known
-    tensor shapes to allow for more aggressive constant propagation.
+*   *改进执行速度*： 对子图进行编译，以减少短时操作的执行时间，进而消除 TensorFlow 运行时相关的开销；
+    融合管道化的操作以减少内存开销；针对已知张量形状优化，以支持更积极的常数传播。
 
-*   *Improve memory usage.* Analyze and schedule memory usage, in principle
-    eliminating many intermediate storage buffers.
+*   *改进内存使用*： 分析内存使用并调度，原则上可消除很多临时的缓存。
 
-*   *Reduce reliance on custom Ops.* Remove the need for many custom Ops by
-    improving the performance of automatically fused low-level Ops to match the
-    performance of custom Ops that were fused by hand.
+*   *减少对定制操作的依赖*： 通过提高底层操作自动融合的性能，让其和定制操作中的手工融合一样高效，从而消除很多定制操作的必要性。
 
-*   *Reduce mobile footprint.* Eliminate the TensorFlow runtime by ahead-of-time
-    compiling the subgraph and emitting an object/header file pair that can be
-    linked directly into another application. The results can reduce the
-    footprint for mobile inference by several orders of magnitude.
+*   *减少移动足迹*： 提前编译子图，并生成一对文件（对象/头文件），它们可以直接编译到另一个应用程序中，从而消除 TensorFlow 运行时。
+    这样做的结果是移动推理的足迹会减少数个数量级。
 
-*   *Improve portability.* Make it relatively easy to write a new backend for
-    novel hardware, at which point a large fraction of TensorFlow programs will
-    run unmodified on that hardware. This is in contrast with the approach of
-    specializing individual monolithic Ops for new hardware, which requires
-    TensorFlow programs to be rewritten to make use of those Ops.
+*   *改善可移植性*： 为新硬件编写新的后端会先对容易一些，因为大部分 TensorFlow 程序不需要怎么修改就可以在新硬件上跑了。
+    这和专门为新硬件定制一体化操作形成对比，因为那样做的话 TensorFlow 程序需要重写才能用这些新的操作。
 
 ## How does XLA work?
 
