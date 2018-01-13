@@ -6,7 +6,7 @@
 
 XLA （加速线性代数）是一种线性代数的专用编译器，可用于优化 TensorFlow 的计算。
 其目标旨在提高速度、内存使用量以及对服务器和移动平台的可移植性。一开始，大
-部分用户将不会从 XLA 中得到太大的好处，但是我们欢迎大家通过 @{$jit$just-in-time (JIT) 编译} 或 @{$tfcompile$ahead-of-time (AOT) 编译} 
+部分用户将不会从 XLA 中得到太大的好处，但是我们欢迎大家通过 @{$jit$just-in-time (JIT) compilation} 或 @{$tfcompile$ahead-of-time (AOT) compilation} 
 来使用 XLA 做实验。特别是那些专注于新硬件加速器的开发者，尤其应该试一试 XLA。
 
 XLA 框架是实验性的，且处于活跃的开发状态。因而，虽然已有操作的语义不太可能发生改变，
@@ -32,10 +32,10 @@ XLA 框架是实验性的，且处于活跃的开发状态。因而，虽然已�
 
 ## XLA 是如何工作的？
 
-XLA 的输入语言被称为 “HLO IR”，或简称 HLO （高层优化器）。HLO 的语义在 @{$operation_semantics$操作语义}页面中有描述。
+XLA 的输入语言被称为 “HLO IR”，或简称 HLO （高层优化器）。HLO 的语义在 @{$operation_semantics$Operation Semantics} 页面中有描述。
 理解 HLO 最方便的方式是将其视为一个 [编译器中间表达（IR）](https://en.wikipedia.org/wiki/Intermediate_representation)。
 
-XLA 接收 HLO 中定义的计算图，然后将它们编译成不同架构的机器指令。XLA 是模块化的，即在 @{$developing_new_backend$为新硬件架构开发后端}时，XLA 易于接入新的硬件后端。这对 x64 和 ARM64 的 CPU 后端，以及 NVIDIA GPU 后端已经包含在 TensorFlow 的源码树中了。
+XLA 接收 HLO 中定义的计算图，然后将它们编译成不同架构的机器指令。XLA 是模块化的，即在 @{$developing_new_backend$target some novel HW architecture} 时，XLA 易于接入新的硬件后端。这对 x64 和 ARM64 的 CPU 后端，以及 NVIDIA GPU 后端已经包含在 TensorFlow 的源码树中了。
 
 下面的流程图展示了 XLA 中的编译过程：
 
@@ -57,5 +57,5 @@ XLA 提供了多个与目标后端无关的优化和分析技术，比如 [CSE](
 
 ## 支持的平台
 
-XLA 目前支持 x86-64 和 NVIDIA GPU 上的 @{$jit$JIT 计算}；且在 x86-64 和 ARM 上支持 @{$tfcompile$AOT 计算}。
+XLA 目前支持 x86-64 和 NVIDIA GPU 上的 @{$jit$JIT compilation}；且在 x86-64 和 ARM 上支持 @{$tfcompile$AOT compilation}。
 
