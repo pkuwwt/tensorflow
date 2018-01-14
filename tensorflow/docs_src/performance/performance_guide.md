@@ -372,19 +372,19 @@ InceptionV3 ([arXiv:1512.00567](https://arxiv.org/abs/1512.00567))。
 对于每个测试，当用到 MKL 优化时，环境变量 KMP_BLOCKTIME 都被设置为 0 (0ms)，而 KMP_AFFINITY 被
 设置为 `granularity=fine,verbose,compact,1,0`。
 
-#### 推理 InceptionV3
+#### InceptionV3 的推理
 
 **环境**
 
-*   Instance Type: AWS EC2 m4.xlarge
+*   实例类型：AWS EC2 m4.xlarge
 *   CPU: Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz (Broadwell)
-*   Dataset: ImageNet
-*   TensorFlow Version: 1.2.0 RC2
-*   Test Script: [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
+*   数据集: ImageNet
+*   TensorFlow 版本： 1.2.0 RC2
+*   测试脚本： [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
 
 **每批次样本数目：1**
 
-Command executed for the MKL test:
+MKL 测试所执行的命令：
 
 ```bash
 python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
@@ -403,7 +403,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 **每批次样本数目：32**
 
-Command executed for the MKL test:
+MKL 测试所执行的命令：
 
 ```bash
 python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
@@ -412,8 +412,8 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| Optimization | Data Format | Images/Sec    | Intra threads | Inter Threads |
-:              :             : (step time)   :               :               :
+| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
+:              :             : (每步时间)  :               :               :
 | ------------ | ----------- | ------------- | ------------- | ------------- |
 | MKL          | NCHW        | 10.3          | 4             | 1             |
 :              :             : (3,104ms)     :               :               :
@@ -425,15 +425,15 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 **环境**
 
-*   Instance Type: AWS EC2 m4.xlarge
+*   I实例类型： AWS EC2 m4.xlarge
 *   CPU: Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz (Broadwell)
-*   Dataset: ImageNet
-*   TensorFlow Version: 1.2.0 RC2
-*   Test Script: [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
+*   数据集: ImageNet
+*   TensorFlow 版本： 1.2.0 RC2
+*   测试脚本： [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
 
 **每批次样本数目：1**
 
-Command executed for the MKL test:
+MKL 测试所执行的命令：
 
 ```bash
 python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
@@ -442,8 +442,8 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| Optimization | Data Format | Images/Sec   | Intra threads | Inter Threads |
-:              :             : (step time)  :               :               :
+| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
+:              :             : (每步时间)  :               :               :
 | ------------ | ----------- | ------------ | ------------- | ------------- |
 | AVX2         | NHWC        | 8.8 (113ms)  | 4             | 0             |
 | MKL          | NCHW        | 8.5 (120ms)  | 4             | 1             |
@@ -452,7 +452,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 **Batch Size: 32**
 
-Command executed for the MKL test:
+MKL 测试所执行的命令：
 
 ```bash
 python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
@@ -461,8 +461,8 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| Optimization | Data Format | Images/Sec    | Intra threads | Inter Threads |
-:              :             : (step time)   :               :               :
+| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
+:              :             : (每步时间)  :               :               :
 | ------------ | ----------- | ------------- | ------------- | ------------- |
 | MKL          | NCHW        | 12.4          | 4             | 1             |
 :              :             : (2,590ms)     :               :               :
@@ -474,13 +474,13 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 **环境**
 
-*   Instance Type: Dedicated AWS EC2 r4.16xlarge (Broadwell)
+*   实例类型： Dedicated AWS EC2 r4.16xlarge (Broadwell)
 *   CPU: Intel Xeon E5-2686 v4 (Broadwell) Processors
-*   Dataset: ImageNet
-*   TensorFlow Version: 1.2.0 RC2
-*   Test Script: [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
+*   数据集： ImageNet
+*   TensorFlow 版本： 1.2.0 RC2
+*   测试脚本： [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
 
-Command executed for MKL test:
+MKL 测试所执行的命令：
 
 ```bash
 python tf_cnn_benchmarks.py --device=cpu --mkl=True --kmp_blocktime=0 \
@@ -489,15 +489,12 @@ python tf_cnn_benchmarks.py --device=cpu --mkl=True --kmp_blocktime=0 \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-Optimization | Data Format | Images/Sec | Intra threads | Inter Threads
+| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
 ------------ | ----------- | ---------- | ------------- | -------------
 MKL          | NCHW        | 20.8       | 36            | 2
 AVX2         | NHWC        | 6.2        | 36            | 0
 AVX          | NHWC        | 5.7        | 36            | 0
 SSE3         | NHWC        | 4.3        | 36            | 0
 
-ResNet and [AlexNet](http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf)
-were also run on this configuration but in an ad hoc manner. There were not
-enough runs executed to publish a coherent table of results. The incomplete
-results strongly indicated the final result would be similar to the table above
-with MKL providing significant 3x+ gains over AVX2.
+另外，我们还让 ResNet 和 [AlexNet](http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf)
+在此配置上以一种自组织（ad hoc）方式运行。只不过测试次数还不足以发布一份明确的结果。不过，不完整的测试结果很大程度上与上表结果类似，即 MKL 的效率为 AVX2 三倍多。
