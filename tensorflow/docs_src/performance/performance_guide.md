@@ -138,40 +138,23 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 
 ## GPU 上的优化
 
-This section contains GPU-specific tips that are not covered in the
-[General best practices](#general-best-practices). Obtaining optimal performance
-on multi-GPUs is a challenge. A common approach is to use data parallelism.
-Scaling through the use of data parallelism involves making multiple copies of
-the model, which are referred to as "towers", and then placing one tower on each
-of the GPUs. Each tower operates on a different mini-batch of data and then
-updates variables, also known as parameters, that need to be shared between
-each of the towers. How each tower gets the updated variables and how the
-gradients are applied has an impact on the performance, scaling, and convergence
-of the model.  The rest of this section provides an overview of variable
-placement and the towering of a model on multiple GPUs.
-@{$performance_models$High-Performance Models} gets into more details regarding
-more complex methods that can be used to share and update variables between
-towers.
+本节介绍针对 GPU 的优化技巧，这和[一般最佳实践](#一般最佳实践)中的内容不同。如何在多 GPU 环境下获得
+最优的性能是一个有挑战性的任务。常用的方法是利用数据并行机制。基于数据并行的扩展需要将模型复制数份，它们被称之为“塔”，
+然后将每个“塔”置于一个 GPU 上。每个塔会对一个不同批次的数据进行操作，然后更新变量。这些变量即我们所说的参数，是需要由
+所有塔来共享的。那么每个塔是如何获得变量更新的？梯度计算又是如何影响模型的性能、扩展、以及收敛性的呢？
+本节后面的部分将概述模型的塔在多个 GPU 上是如何处理那些变量的。@{$performance_models$高性能模型} 中则会更详细介绍一些更复杂的方法，用于在不同塔之间共享和更新变量。
 
-The best approach to handling variable updates depends on the model, hardware,
-and even how the hardware has been configured. An example of this, is that two
-systems can be built with NVIDIA Tesla P100s but one may be using PCIe and the
-other [NVLink](http://www.nvidia.com/object/nvlink.html). In that scenario, the
-optimal solution for each system may be different. For real world examples, read
-the @{$performance/benchmarks$benchmark} page which details the settings that
-were optimal for a variety of platforms. Below is a summary of what was learned
-from benchmarking various platforms and configurations:
+如何最好地处理变量的更新与模型、硬件、以及硬件的配置方法等因素有关。比如，两个系统都用 NVIDIA Tesla P100s，
+但是一个使用的是 PCIe 而另一个却是 [NVLink](http://www.nvidia.com/object/nvlink.html)。在这种情况下，
+两者的最优方案就不可能不一样了。对于真实世界的例子，请参考 @{$performance/benchmarks$基准} 页面中关于多种平台上的最优设置的介绍。
+我们对几个平台和配置进行了基准测试，下面是摘要：
 
-*   **Tesla K80**: If the GPUs are on the same PCI Express root complex and are
-    able to use [NVIDIA GPUDirect](https://developer.nvidia.com/gpudirect) Peer
-    to Peer, then placing the variables equally across the GPUs used for
-    training is the best approach. If the GPUs cannot use GPUDirect, then
-    placing the variables on the CPU is the best option.
+*   **Tesla K80**： 如果多个 GPU 位于同一个 PCI Express 根联合体上，且相互之间能够使用 
+    [NVIDIA GPUDirect](https://developer.nvidia.com/gpudirect) 技术相
+    通信，则将变量均匀地分布在这些 GPU 上进行训练是最好的方法。如果不能使用 GPUDirect，则变量放在 CPU 上是最好的办法。
 
-*   **Titan X (Maxwell and Pascal), M40, P100, and similar**: For models like
-    ResNet and InceptionV3, placing variables on the CPU is the optimal setting,
-    but for models with a lot of variables like AlexNet and VGG, using GPUs with
-    `NCCL` is better.
+*   **Titan X (Maxwell 和 Pascal)、 M40、P100、及类似型号**： 对于像 ResNet 和 InceptionV3 这样的模型，将变量
+    放在 CPU 上是最优选择，但是对于变量很多的模型，比如 AlexNet 和 VGG，结合 `NCCL` 使用 GPU 会更好一些。
 
 A common approach to managing where variables are placed, is to create a method
 to determine where each Op is to be placed and use that method in place of a
