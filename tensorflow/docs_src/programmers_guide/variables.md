@@ -93,7 +93,7 @@ with tf.device(tf.train.replica_device_setter(cluster=cluster_spec)):
 
 ## 初始化变量
 
-变量在使用之前必须初始化。如果你在用低级的 TensorFlow API 编程（也就是说，你在显式地创建你自己的图表和会话），你必须显式地初始化这些变量。大部分高级框架，比如 `tf.contrib.slim`, `tf.estimator.Estimator` 和 `Keras` 都会在训练模型之前自动帮你初始化变量。
+变量在使用之前必须初始化。如果你在用低级的 TensorFlow API 编程（也就是说，你在显式地创建你自己的计算图和会话），你必须显式地初始化这些变量。大部分高级框架，比如 `tf.contrib.slim`, `tf.estimator.Estimator` 和 `Keras` 都会在训练模型之前自动帮你初始化变量。
 
 另一方面，显式的初始化方式也很实用，因为这能让你从备份中重载模型时，不必重新运行可能会很耗性能的初始化函数，同时也在随机初始化分布式设置中的共享变量时允许因果关联（原文为 determinism，译者注）。
 
@@ -125,7 +125,7 @@ w = tf.get_variable("w", initializer=v.initialized_value() + 1)
 
 ## 使用变量
 
-如果要在 TensorFlow 图表中使用 `tf.Variable` 的值，你只需把它当作一个普通的 `tf.Tensor` 来使用：
+如果要在 TensorFlow 计算图中使用 `tf.Variable` 的值，你只需把它当作一个普通的 `tf.Tensor` 来使用：
 
 ``` python
 v = tf.get_variable("v", shape=(), initializer=tf.zeros_initializer())
