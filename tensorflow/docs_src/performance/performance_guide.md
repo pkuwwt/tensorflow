@@ -247,32 +247,21 @@ def _resnet_model_fn():
 
 ## CPU 上的优化
 
-CPUs, which includes Intel® Xeon Phi™, achieve optimal performance when
-TensorFlow is @{$install_sources$built from source} with all of the instructions
-supported by the target CPU.
+只要 @{$install_sources$从源码构建} TensorFlow，并启用目标 CPU 所支持的那些优化指令，包括 Intel® Xeon Phi™ 在内的 CPU 是可以实现最优性能的，
 
-Beyond using the latest instruction sets, Intel® has added support for the
-Intel® Math Kernel Library for Deep Neural Networks (Intel® MKL-DNN) to
-TensorFlow. While the name is not completely accurate, these optimizations are
-often simply referred to as 'MKL' or 'TensorFlow with MKL'. [TensorFlow
-with Intel® MKL-DNN](#tensorflow_with_intel_mkl_dnn) contains details on the
-MKL optimizations.
+除了使用了最新的指令集，Intel® 还在 Intel® 深度神经网络数学核心库（Math Kernel Library，Intel® MKL-DNN）
+中加入了对 TensorFlow 的支持。虽然用词不完全准确，这些优化还是常被简称为 “MKL”，或“基于 MKL 的 TensorFlow”。
+[基于 Intel® MKL-DNN 的 TensorFlow](#tensorflow_with_intel_mkl_dnn) 中详细介绍了 MKL 优化。
 
-The two configurations listed below are used to optimize CPU performance by
-adjusting the thread pools.
+下面两种配置是通过调整线程池来优化 CPU 性能：
 
-*   `intra_op_parallelism_threads`: Nodes that can use multiple threads to
-    parallelize their execution will schedule the individual pieces into this
-    pool.
-*   `inter_op_parallelism_threads`: All ready nodes are scheduled in this pool.
+*   `intra_op_parallelism_threads`： 使用多线程来并行化的结点会将不同的计算单元分配到池中线程上
+*   `inter_op_parallelism_threads`： 所有待计算结点都由此线程池来调度
 
-These configurations are set via the `tf.ConfigProto` and passed to `tf.Session`
-in the `config` attribute as shown in the snippet below.  For both configuration
-options, if they are unset or set to 0, will default to the number of logical
-CPU cores. Testing has shown that the default is effective for systems ranging
-from one CPU with 4 cores to multiple CPUs with 70+ combined logical cores.
-A common alternative optimization is to set the number of threads in both pools
-equal to the number of physical cores rather than logical cores.
+这些配置是通过 `tf.ConfigProto` 来设置的，如下面代码所示，将其作为 `config` 参数传递到 `tf.Session` 即可。
+对于这两种配置，如果都没有设置或设置为 0，则会默认使用逻辑 CPU 核心的数目。对于许多系统，包括 4 核的 CPU，以及包含
+70 多个逻辑核心的多 CPU 系统，测试都显示默认设置已经非常高效。另一种常用策略是将线程池的大小设置为物理核的数目，而
+非逻辑核的数目。
 
 ```python
 
@@ -283,9 +272,7 @@ equal to the number of physical cores rather than logical cores.
 
 ```
 
-The [Comparing compiler optimizations](#comparing-compiler-optimizations)
-section contains the results of tests that used different compiler
-optimizations.
+在[编译器优化对比](#comparing-compiler-optimizations) 中，介绍了不同编译器优化的测试结果。
 
 ### 在 TensorFlow 中使用 Intel® MKL DNN
 
