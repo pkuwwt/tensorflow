@@ -276,41 +276,35 @@ def _resnet_model_fn():
 
 ### 在 TensorFlow 中使用 Intel® MKL DNN
 
-Intel® has added optimizations to TensorFlow for Intel® Xeon® and Intel® Xeon
-Phi™ though the use of Intel® Math Kernel Library for Deep Neural Networks
-(Intel® MKL-DNN) optimized primitives. The optimizations also provide speedups
+通过使用 Intel® 深度神经网络数学核心库的优化指令， Intel® 在 Xeon 和 Xeon Phi™ 芯片中加入对 TensorFlow 的优化。
+这些优化也为消费级处理器提供了加速，比如 i5 和 i7 的 Intel 处理器。Intel 公司还发布了文章 
+[在现代 Intel® 架构上的 TensorFlow* 优化](https://software.intel.com/en-us/articles/tensorflow-optimizations-on-modern-intel-architecture)，其中披露了实现的更多细节。
+
+> 注意：TensorFlow 从 1.2 版本开始加入了对 MKL 的支持，但是目前只支持 Linux 平台。
 for the consumer line of processors, e.g. i5 and i7 Intel processors. The Intel
-published paper
-[TensorFlow* Optimizations on Modern Intel® Architecture](https://software.intel.com/en-us/articles/tensorflow-optimizations-on-modern-intel-architecture)
-contains additional details on the implementation.
+> 而且，如果使用了 `--config=cuda`，也是无法使用 MKL 的。
 
-> Note: MKL was added as of TensorFlow 1.2 and currently only works on Linux. It
-> also does not work when also using `--config=cuda`.
+除了显著地改善了基于 CNN 的模型的训练效率，用 MKL 编译的代码针对 AVX 和 AVX2 也进行了优化。
+因而，对于大部分现代处理器而言（2011年之后），一次编译就可同时满足优化和兼容性需求。
 
-In addition to providing significant performance improvements for training CNN
-based models, compiling with the MKL creates a binary that is optimized for AVX
-and AVX2. The result is a single binary that is optimized and compatible with
-most modern (post-2011) processors.
+TensorFlow 可用下面的命令来在编译中加入 MKL 优化，不同的 TensorFlow 版本会有差异。
 
-TensorFlow can be compiled with the MKL optimizations using the following
-commands that depending on the version of the TensorFlow source used.
-
-For TensorFlow source versions after 1.3.0:
+对于 1.3.0 版本以后的 TensorFlow 源码：
 
 ```bash
 ./configure
-# Pick the desired options
+# 选择所需的选项
 bazel build --config=mkl -c opt //tensorflow/tools/pip_package:build_pip_package
 
 ```
 
-For TensorFlow versions 1.2.0 through 1.3.0:
+对于从 1.2.0 到 1.3.0 之间的版本：
 
 ```bash
 ./configure
 Do you wish to build TensorFlow with MKL support? [y/N] Y
 Do you wish to download MKL LIB from the web? [Y/n] Y
-# Select the defaults for the rest of the options.
+# 剩余的选项用默认值即可
 
 bazel build --config=mkl --copt="-DEIGEN_USE_VML" -c opt //tensorflow/tools/pip_package:build_pip_package
 
