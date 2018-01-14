@@ -30,70 +30,50 @@
 *   估计所需的吞吐量，确认磁盘可以应付这样规模的吞吐量。一些云服务网络提供的磁盘速度甚至低到 50 MB/秒，这比机械磁盘（150 MB/秒）、SATA SSD （500 MB/秒）、以及 PCIe SSD （2000+ MB/秒）都要慢。
 
 
-#### Preprocessing on the CPU
+#### CPU 上的预处理
 
-Placing input pipeline operations on the CPU can significantly improve
-performance. Utilizing the CPU for the input pipeline frees the GPU to focus on
-training. To ensure preprocessing is on the CPU, wrap the preprocessing
-operations as shown below:
+将输入管线的操作放在 CPU 上可以显著提高性能。让 CPU 处理输入管线，可以解放 GPU，让它专注于训练。为了确保预处理是在 CPU 上进行，可将预处理操作按如下方式包装一下：
 
 ```python
 with tf.device('/cpu:0'):
-  # function to get and process images or data.
+  # 用于获得和处理图像或数据的函数
   distorted_inputs = load_and_distort_images()
 ```
 
-If using `tf.estimator.Estimator` the input function is automatically placed on
-the CPU.
+如果使用 `tf.estimator.Estimator`，输入函数会自动用 CPU 执行。
 
-#### Using the Dataset API
+#### 使用 Dataset API
 
-The @{$datasets$Dataset API} is replacing `queue_runner` as the recommended API
-for building input pipelines. The API was added to contrib as part of TensorFlow
-1.2 and will move to core in the near future. This
-[ResNet example](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/cifar10_main.py)
-([arXiv:1512.03385](https://arxiv.org/abs/1512.03385))
-training CIFAR-10 illustrates the use of the Dataset API along with
-`tf.estimator.Estimator`. The Dataset API utilizes C++ multi-threading and has a
-much lower overhead than the Python-based `queue_runner` that is limited by
-Python's multi-threading performance.
+在构建输入管线时，我们推荐使用 @{$datasets$Dataset API}，而不是原来的 `queue_runner`。
+这个 API 出现在 TensorFlow 1.2 的 contrib 模块中，未来会被加到核心代码中。
+[ResNet 示例](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/cifar10_main.py)
+（来自于论文 [arXiv:1512.03385](https://arxiv.org/abs/1512.03385)）中训练 CIFAR-10 展示了如何结合 `tf.estimator.Estimator` 来使用 Dataset API。Dataset API利用了 C++ 多线程，且比基于 Python 的 `queue_runner` 具有更小的开销，后者受 Python 的多线程性能所累。
 
-While feeding data using a `feed_dict` offers a high level of flexibility, in
-most instances using `feed_dict` does not scale optimally. However, in instances
-where only a single GPU is being used the difference can be negligible. Using
-the Dataset API is still strongly recommended. Try to avoid the following:
+虽然用一个 `feed_dict` 字典来输入数据非常灵活，但在大部分例子中，使用 `feed_dict` 并不能很好地扩展。
+不过，如果只用到了一个 GPU，这并没有什么影响。即便如此，我们也强烈推荐使用 Dataset API。下面的用法应尽量避免： 
 
 ```python
-# feed_dict often results in suboptimal performance when using large inputs.
+# 如果输入数据量大，feed_dict 通常导致次优的性能
 sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
 ```
 
-#### Use large files
+#### 使用大文件
+加载大量的小文件会极大地影响 I/O 性能。一种获得最大的 I/O 吞吐量的方法是将输入数据预处理为更大的 `TFRecord` 文件（约 100MB 大小）。
+对于较小的数据集（200MB~1GB），最好的方法通常是将整个数据集加载到内存。资料[下载和转换为 TFRecord 格式](https://github.com/tensorflow/models/tree/master/research/slim#Data) 中介绍了创建 `TFRecords` 的相关信息和脚本，
+而[脚本](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/generate_cifar10_tfrecords.py) 
+可用于将 CIFAR-10 数据集转化为 `TFRecords`。
 
-Reading large numbers of small files significantly impacts I/O performance.
-One approach to get maximum I/O throughput is to preprocess input data into
-larger (~100MB) `TFRecord` files. For smaller data sets (200MB-1GB), the best
-approach is often to load the entire data set into memory. The document
-[Downloading and converting to TFRecord format](https://github.com/tensorflow/models/tree/master/research/slim#Data)
-includes information and scripts for creating `TFRecords` and this
-[script](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/generate_cifar10_tfrecords.py)
-converts the CIFAR-10 data set into `TFRecords`.
+### 数据格式
 
-### Data formats
+数据格式指的是传递给指定操作的张量结构。下面的讨论专门针对表示图像的四维张量。在 TensorFlow 中，
+四维张量中的部分成员常用如下一些字母来表示：
 
-Data formats refers to the structure of the Tensor passed to a given Op. The
-discussion below is specifically about 4D Tensors representing images. In
-TensorFlow the parts of the 4D tensor are often referred to by the following
-letters:
+*   N 表示一个训练批次中的图像数目
+*   H 表示垂直维度（高度方向）中的像元数目
+*   W 表示水平维度（宽度方向）中的像元数目
+*   C 表示通道数。比如，1 表示黑白或灰度图像，而 3 表示 RGB 图像。
 
-*   N refers to the number of images in a batch.
-*   H refers to the number of pixels in the vertical (height) dimension.
-*   W refers to the number of pixels in the horizontal (width) dimension.
-*   C refers to the channels. For example, 1 for black and white or grayscale
-    and 3 for RGB.
-
-Within TensorFlow there are two naming conventions representing the two most
-common data formats:
+在 TensorFlow 中，有两种命名规范分别表示最常用的两种数据格式：
 
 *   `NCHW` or `channels_first`
 *   `NHWC` or `channels_last`
