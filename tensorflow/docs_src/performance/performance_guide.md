@@ -17,25 +17,17 @@
 
 ### 输入管线的优化
 
-典型的模型会从磁盘加载数据，然后处理并发送到网络中。For example, models that process JPEG images will follow
-this flow: load image from disk, decode JPEG into a tensor, crop and pad,
-possibly flip and distort, and then batch. This flow is referred to as the input
-pipeline. As GPUs and other hardware accelerators get faster, preprocessing of
-data can be a bottleneck.
+典型的模型会从磁盘加载数据，然后处理并发送到网络中。比如，模型按照下列数据流过程来处理 JPEG 图像：
+从磁盘加载图像，将 JPEG 解码加载到一个张量中，裁剪和边缘垫值，以及可能的翻转的变形，然后按批次投入训练。
+这个数据流被称为输入管线。随着 GPU 和其它加速硬件运行得越来越快，数据预处理就成了性能的瓶颈。
 
-Determining if the input pipeline is the bottleneck can be complicated. One of
-the most straightforward methods is to reduce the model to a single operation
-(trivial model) after the input pipeline and measure the examples per second. If
-the difference in examples per second for the full model and the trivial model
-is minimal then the input pipeline is likely a bottleneck. Below are some other
-approaches to identifying issues:
+确定输入管线是否为瓶颈可能会比较复杂。一种最直接的方法是让输入管线后的那个模型只包含单个操作（得到一个平凡模型），然后测量其每秒处理的样例数。
+如果整个模型和平凡模型之间的效率差异极小，则输入管线很有可能是一个瓶颈。下面是发现瓶颈问题的其它一些方法：
 
-*   Check if a GPU is underutilized by running `nvidia-smi -l 2`. If GPU
-    utilization is not approaching 80-100%, then the input pipeline may be the
-    bottleneck.
-*   Generate a timeline and look for large blocks of white space (waiting). An
-    example of generating a timeline exists as part of the @{$jit$XLA JIT}
-    tutorial.
+*   通过运行 `nvidia-smi -l 2` 来检查一个 GPU 是否已经在使用。如果 GPU 利用率没有接近 80-100%，则此输入管线可能是个瓶颈。
+*   生成一个时间线，并检查它是否有大块的空白时间段（等待时间）。生成时间线的示例参见教程 @{$jit$XLA JIT}。
+*   检查 CPU 使用情况。
+
 *   Check CPU usage. It is possible to have an optimized input pipeline and lack
     the CPU cycles to process the pipeline.
 *   Estimate the throughput needed and verify the disk used is capable of that
