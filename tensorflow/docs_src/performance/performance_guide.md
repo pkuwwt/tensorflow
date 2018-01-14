@@ -156,51 +156,38 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 *   **Titan X (Maxwell 和 Pascal)、 M40、P100、及类似型号**： 对于像 ResNet 和 InceptionV3 这样的模型，将变量
     放在 CPU 上是最优选择，但是对于变量很多的模型，比如 AlexNet 和 VGG，结合 `NCCL` 使用 GPU 会更好一些。
 
-A common approach to managing where variables are placed, is to create a method
-to determine where each Op is to be placed and use that method in place of a
-specific device name when calling `with tf.device():`. Consider a scenario where
-a model is being trained on 2 GPUs and the variables are to be placed on the
-CPU. There would be a loop for creating and placing the "towers" on each of the
-2 GPUs. A custom device placement method would be created that watches for Ops
-of type `Variable`, `VariableV2`, and `VarHandleOp` and indicates that they are
-to be placed on the CPU. All other Ops would be placed on the target GPU.
-The building of the graph would proceed as follows:
 
-*   On the first loop a "tower" of the model would be created for `gpu:0`.
-    During the placement of the Ops, the custom device placement method would
-    indicate that variables are to be placed on `cpu:0` and all other Ops on
-    `gpu:0`.
+将变量放在哪个设备上有一个通用的方法，那就是编写一个方法来为每个操作
+确定放置的位置，然后在调用 `with tf.device():` 的时候用这个方法，而不要
+直接使用具体的设备名。考虑在两个 GPU 上训练一个模型的场景，假定其变量放
+在 CPU 上。那么我们需要用一个循环来为这每个 GPU 来生成和放置一个“塔”。
+一种惯用的放置方法是查看每个操作的类型，如果类型为 `Variable`、`VariableV2` 
+或 `VarHandleOp`，则此方法判断它们应该被放在 CPU 上，而其它所有操作被判定应该放在 GPU 上。
+所以，计算图的构建过程应该是：
 
-*   On the second loop, `reuse` is set to `True` to indicate that variables are
-    to be reused and then the "tower" is created on `gpu:1`. During the
-    placement of the Ops associated with the "tower", the variables that were
-    placed on `cpu:0` are reused and all other Ops are created and placed on
-    `gpu:1`.
+*    在第一个循环中，为 `gpu:0` 创建一个模型的塔。在放置操作的过程中，我们的放置方法确定
+     变量应放在 `cpu:0` 上，而所有其它操作应该放在 `gpu:0` 上。
+*    在第二个循环中，`reuse` 设为 `True`，表示变量要被重用，然后为 `gpu:1` 生成一个“塔”。
+     在放置这个塔上的操作时，那些已经被放在 `cpu:0` 上的变量会被重用，而所有其它的操作则被放在 `gpu:1` 上。
 
-The final result is all of the variables are placed on the CPU with each GPU
-having a copy of all of the computational Ops associated with the model.
+最后的结果是，所有的变量都被放在 CPU 上，而每个 GPU 上都有拷贝有一份模型中所有的计算操作。
 
-The code snippet below illustrates two different approaches for variable
-placement: one is placing variables on the CPU; the other is placing variables
-equally across the GPUs.
+下面的代码片断展示了两种不同的变量放置方法：一种是将变量放在 CPU 上，另一种是将变量均匀分布在各个 GPU 上。
 
 ```python
 
 class GpuParamServerDeviceSetter(object):
-  """Used with tf.device() to place variables on the least loaded GPU.
+  """用 with tf.device() 来将变量放置在负载最小的 GPU 上。
 
-    A common use for this class is to pass a list of GPU devices, e.g. ['gpu:0',
-    'gpu:1','gpu:2'], as ps_devices.  When each variable is placed, it will be
-    placed on the least loaded gpu. All other Ops, which will be the computation
-    Ops, will be placed on the worker_device.
+    这个类的通常用法是传入一个 GPU 设备列表变量 ps_devices，其值类似于 ['gpu:0', 'gpu:1','gpu:2']。
+    当放置变量时，每个变量会被放在负载最小的 gpu 上。所有其它操作，即那些计算操作，将被放在 worker_device上。
   """
 
   def __init__(self, worker_device, ps_devices):
-    """Initializer for GpuParamServerDeviceSetter.
-    Args:
-      worker_device: the device to use for computation Ops.
-      ps_devices: a list of devices to use for Variable Ops. Each variable is
-      assigned to the least loaded device.
+    """GpuParamServerDeviceSetter 的初始化函数
+    参数：
+      worker_device: 用于计算操作的设置
+      ps_devices：一个设置列表，用于变量操作。每个变量被指定到最小负载的设备上
     """
     self.ps_devices = ps_devices
     self.worker_device = worker_device
@@ -212,7 +199,7 @@ class GpuParamServerDeviceSetter(object):
     if op.type not in ['Variable', 'VariableV2', 'VarHandleOp']:
       return self.worker_device
 
-    # Gets the least loaded ps_device
+    # 从 ps_devices 中获得最小负载的设备
     device_index, _ = min(enumerate(self.ps_sizes), key=operator.itemgetter(1))
     device_name = self.ps_devices[device_index]
     var_size = op.outputs[0].get_shape().num_elements()
@@ -221,48 +208,42 @@ class GpuParamServerDeviceSetter(object):
     return device_name
 
 def _create_device_setter(is_cpu_ps, worker, num_gpus):
-  """Create device setter object."""
+  """创建设备设置器对象。"""
   if is_cpu_ps:
-    # tf.train.replica_device_setter supports placing variables on the CPU, all
-    # on one GPU, or on ps_servers defined in a cluster_spec.
+    # 如果 tf.train.replica_device_setter 支持在 CPU 上放置变量，所有放在一个 GPU 上，
+    # 或放在 cluster_spec 中定义的服务器上（ps_servers）
     return tf.train.replica_device_setter(
         worker_device=worker, ps_device='/cpu:0', ps_tasks=1)
   else:
     gpus = ['/gpu:%d' % i for i in range(num_gpus)]
     return ParamServerDeviceSetter(worker, gpus)
 
-# The method below is a modified snippet from the full example.
+# 本方法是一个完整例子中摘出来的一段代码经修改而得到的
 def _resnet_model_fn():
-    # When set to False, variables are placed on the least loaded GPU. If set
-    # to True, the variables will be placed on the CPU.
+    # 当设置为 False 时，变量会被放置在最小负载 GPU 上，如果设置为 True，变量会被放置在 CPU 上
     is_cpu_ps = False
 
-    # Loops over the number of GPUs and creates a copy ("tower") of the model on
-    # each GPU.
+    # 遍历所有 GPU，为每个 GPU 生成一个模型的“塔”副本
     for i in range(num_gpus):
       worker = '/gpu:%d' % i
-      # Creates a device setter used to determine where Ops are to be placed.
+      # 创建一个设备设置器，用于确定操作的放置位置
       device_setter = _create_device_setter(is_cpu_ps, worker, FLAGS.num_gpus)
-      # Creates variables on the first loop.  On subsequent loops reuse is set
-      # to True, which results in the "towers" sharing variables.
+      # 在第一个循环中创建变量，在接下来的循环中，reuse 被设置为 True
+      # 于是，那些“塔”会共享这些变量
       with tf.variable_scope('resnet', reuse=bool(i != 0)):
         with tf.name_scope('tower_%d' % i) as name_scope:
-          # tf.device calls the device_setter for each Op that is created.
-          # device_setter returns the device the Op is to be placed on.
-          with tf.device(device_setter):
-            # Creates the "tower".
+          # tf.device 为创建的每个操作调用 device_setter
+          # device_setter 返回此操作将要放置的设备
+          with tf.device(device_setter):
+            # 创建“塔”
             _tower_fn(is_training, weight_decay, tower_features[i],
                       tower_labels[i], tower_losses, tower_gradvars,
                       tower_preds, False)
 
 ```
-
-In the near future the above code will be for illustration purposes only as
-there will be easy to use high level methods to support a wide range of popular
-approaches. This
-[example](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator)
-will continue to get updated as the API expands and evolves to address multi-GPU
-scenarios.
+在不远的将来，上述代码将只会用于演示目的，因为我们会推出高层次接口来支持主流的设备放置方法，其使用也要容易地多。
+在我们逐步扩展 API 并更好地支持多 GPU 场景的同时，[示例](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator)
+也会持续更新。
 
 ## CPU 上的优化
 
