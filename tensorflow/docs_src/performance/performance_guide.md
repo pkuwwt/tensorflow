@@ -75,77 +75,58 @@ sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
 
 在 TensorFlow 中，有两种命名规范分别表示最常用的两种数据格式：
 
-*   `NCHW` or `channels_first`
-*   `NHWC` or `channels_last`
+*   `NCHW` 或 `channels_first`
+*   `NHWC` 或 `channels_last`
 
-`NHWC` is the TensorFlow default and `NCHW` is the optimal format to use when
-training on NVIDIA GPUs using [cuDNN](https://developer.nvidia.com/cudnn).
 
-The best practice is to build models that work with both data formats. This
-simplifies training on GPUs and then running inference on CPUs. If TensorFlow is
-compiled with the [Intel MKL](#tensorflow_with_intel_mkl-dnn) optimizations,
-many operations, especially those related to CNN based models, will be optimized
-and support `NCHW`. If not using the MKL, some operations are not supported on
-CPU when using `NCHW`.
+TensorFlow默认采用 `NHWC`，而在 NVIDIA GPU 上使用 [cuDNN](https://developer.nvidia.com/cudnn) 时，`NCHW` 格式是最优选择。
 
-The brief history of these two formats is that TensorFlow started by using
-`NHWC` because it was a little faster on CPUs. In the long term, we are working
-on tools to auto rewrite graphs to make switching between the formats
-transparent and take advantages of micro optimizations where a GPU Op may be
-faster using `NHWC` than the normally most efficient `NCHW`.
+实践中最好的方式是让你的模型同时支持这两种数据格式。这可以让你在 GPU 上训练完了之后直接将模型用于 CPU 上的推理。
+如果 TensorFlow 编译时用了 [Intel MKL](#tensorflow_with_intel_mkl-dnn) 优化，很多操作会被优化并支持 `NCHW`，特别是基于 CNN 的模型相关的操作。如果你没有使用 MKL，有些操作在使用 `NCHW` 时无法在 CPU 上运行。
 
-### Common fused Ops
+这里我们简要介绍一下这两种格式的历史。TensorFlow 最开始使用 `NHWC` 是因为它在 CPU 上稍微快一点。
+但长期以来，我们一直在编写工具，让计算图可以自动重写，从而让两种格式的切换变得透明化，来实现一些优化。
+我们发现，尽管 `NCHW` 在一般情况下效率是最高的，但有些 GPU 操作在使用 `NHWC` 时确实更快一些。
 
-Fused Ops combine multiple operations into a single kernel for improved
-performance. There are many fused Ops within TensorFlow and @{$xla$XLA} will
-create fused Ops when possible to automatically improve performance. Collected
-below are select fused Ops that can greatly improve performance and may be
-overlooked.
+### 通用融合操作
 
-#### Fused batch norm
+融合操作是将多个操作合并为单个内核，从而提高性能。TensorFlow 自带了大量的融合操作，而且 @{$xla$XLA} 
+会尽可能地创建融合操作，来自动地提高性能。下面，我们将挑选出一些融合操作，这些操作可以极大地提高性能，但往往会被忽视。
 
-Fused batch norm combines the multiple operations needed to do batch
-normalization into a single kernel. Batch norm is an expensive process that for
-some models makes up a large percentage of the operation time. Using fused batch
-norm can result in a 12%-30% speedup.
+#### 融合批量标准化
 
-There are two commonly used batch norms and both support fusing. The core
-@{tf.layers.batch_normalization} added fused starting in TensorFlow 1.3.
+融合批量标准化（Fused batch norm）是将批量标准化所需的多个操作合并为一个内核。批量标准化是一个开销很大的过程，对于一些模型而言，它会占用很大比例的操作时间。通过使用融合批量标准化，可以实现 12%-30% 的加速。
+
+常用的批量标准化有两种，都支持融合。TensorFlow 1.3 版本中开始支持对核心函数 @{tf.layers.batch_normalization} 添加融合支持。
 
 ```python
 bn = tf.layers.batch_normalization(
     input_layer, fused=True, data_format='NCHW')
 ```
 
-The contrib @{tf.contrib.layers.batch_norm} method has had fused as an option
-since before TensorFlow 1.0.
+社区贡献（contrib）中的 @{tf.contrib.layers.batch_norm} 函数则从 TensorFlow 1.0 起就加入融合支持。
 
 ```python
 bn = tf.contrib.layers.batch_norm(input_layer, fused=True, data_format='NCHW')
 ```
 
-### Building and installing from source
+### 从源码构建和安装
 
-The default TensorFlow binaries target the broadest range of hardware to make
-TensorFlow accessible to everyone. If using CPUs for training or inference, it
-is recommended to compile TensorFlow with all of the optimizations available for
-the CPU in use. Speedups for training and inference on CPU are documented below
-in [Comparing compiler optimizations](#comparing-compiler-optimizations).
 
-To install the most optimized version of TensorFlow,
-@{$install_sources$build and install} from source. If there is a need to build
-TensorFlow on a platform that has different hardware than the target, then
-cross-compile with the highest optimizations for the target platform. The
-following command is an example of using `bazel` to compile for a specific
-platform:
+默认情况下，TensorFlow 二进制程序已经覆盖了非常广泛的硬件种类，从而让每个人都能使用 TensorFlow。
+如果用 CPU 来做训练或推理，建议编译 TensorFlow 时启用所有针对 CPU 的优化。对 CPU 上训练和推理的加速的文档
+参见[编译器优化的对比](#编译器优化的对比)。
+
+为安装 TensorFlow 的优化得最充分的版本，你需要从源码 @{$install_sources$构建和安装}。
+如果需要在目标机器上构建支持不同硬件平台的 TensorFlow，你需要在交叉编译时针对目标平台启用最高级别的优化。
+下面的命令展示了使用 `bazel` 针对特定平台进行编译的示例。
 
 ```python
 # This command optimizes for Intel’s Broadwell processor
 bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pip_package:build_pip_package
-
 ```
 
-#### Environment, build, and install tips
+#### 环境、构建和安装技巧
 
 *   `./configure` asks which compute capability to include in the build. This
     does not impact overall performance but does impact initial startup. After
@@ -161,7 +142,7 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 *   Install the latest stable CUDA platform and cuDNN libraries supported by
     TensorFlow.
 
-## Optimizing for GPU
+## GPU 上的优化
 
 This section contains GPU-specific tips that are not covered in the
 [General best practices](#general-best-practices). Obtaining optimal performance
@@ -306,7 +287,7 @@ approaches. This
 will continue to get updated as the API expands and evolves to address multi-GPU
 scenarios.
 
-## Optimizing for CPU
+## CPU 上的优化
 
 CPUs, which includes Intel® Xeon Phi™, achieve optimal performance when
 TensorFlow is @{$install_sources$built from source} with all of the instructions
@@ -348,7 +329,7 @@ The [Comparing compiler optimizations](#comparing-compiler-optimizations)
 section contains the results of tests that used different compiler
 optimizations.
 
-### TensorFlow with Intel® MKL DNN
+### 在 TensorFlow 中使用 Intel® MKL DNN
 
 Intel® has added optimizations to TensorFlow for Intel® Xeon® and Intel® Xeon
 Phi™ though the use of Intel® Math Kernel Library for Deep Neural Networks
@@ -390,7 +371,7 @@ bazel build --config=mkl --copt="-DEIGEN_USE_VML" -c opt //tensorflow/tools/pip_
 
 ```
 
-#### Tuning MKL for the best performance
+#### MKL 调参以实现性能最优
 
 This section details the different configurations and environment variables that
 can be used to tune the MKL to get optimal performance. Before tweaking various
@@ -466,7 +447,7 @@ Each variable that impacts performance is discussed below.
     sockets is recommended. Setting the value to 0, which is the default,
     results in the value being set to the number of logical cores.
 
-### Comparing compiler optimizations
+### 编译器优化的对比
 
 Collected below are performance results running training and inference on
 different types of CPUs on different platforms with various compiler
@@ -478,9 +459,9 @@ For each test, when the MKL optimization was used the environment variable
 KMP_BLOCKTIME was set to 0 (0ms) and KMP_AFFINITY to
 `granularity=fine,verbose,compact,1,0`.
 
-#### Inference InceptionV3
+#### 推理 InceptionV3
 
-**Environment**
+**环境**
 
 *   Instance Type: AWS EC2 m4.xlarge
 *   CPU: Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz (Broadwell)
@@ -488,7 +469,7 @@ KMP_BLOCKTIME was set to 0 (0ms) and KMP_AFFINITY to
 *   TensorFlow Version: 1.2.0 RC2
 *   Test Script: [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
 
-**Batch Size: 1**
+**每批次样本数目：1**
 
 Command executed for the MKL test:
 
@@ -499,15 +480,15 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| Optimization | Data Format | Images/Sec   | Intra threads | Inter Threads |
-:              :             : (step time)  :               :               :
+| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
+:              :             : (每步时间)  :               :               :
 | ------------ | ----------- | ------------ | ------------- | ------------- |
 | AVX2         | NHWC        | 7.0 (142ms)  | 4             | 0             |
 | MKL          | NCHW        | 6.6 (152ms)  | 4             | 1             |
 | AVX          | NHWC        | 5.0 (202ms)  | 4             | 0             |
 | SSE3         | NHWC        | 2.8 (361ms)  | 4             | 0             |
 
-**Batch Size: 32**
+**每批次样本数目：32**
 
 Command executed for the MKL test:
 
@@ -527,9 +508,9 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 | AVX          | NHWC        | 5.1 (6,275ms) | 4             | 0             |
 | SSE3         | NHWC        | 2.8 (11,428ms)| 4             | 0             |
 
-#### Inference ResNet-50
+#### 推理 ResNet-50
 
-**Environment**
+**环境**
 
 *   Instance Type: AWS EC2 m4.xlarge
 *   CPU: Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz (Broadwell)
@@ -537,7 +518,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 *   TensorFlow Version: 1.2.0 RC2
 *   Test Script: [tf_cnn_benchmarks.py](https://github.com/tensorflow/benchmarks/blob/mkl_experiment/scripts/tf_cnn_benchmarks/tf_cnn_benchmarks.py)
 
-**Batch Size: 1**
+**每批次样本数目：1**
 
 Command executed for the MKL test:
 
@@ -576,9 +557,9 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 | AVX          | NHWC        | 7.3 (4,4416ms)| 4             | 0             |
 | SSE3         | NHWC        | 4.0 (8,054ms) | 4             | 0             |
 
-#### Training InceptionV3
+#### 训练 InceptionV3
 
-**Environment**
+**环境**
 
 *   Instance Type: Dedicated AWS EC2 r4.16xlarge (Broadwell)
 *   CPU: Intel Xeon E5-2686 v4 (Broadwell) Processors
