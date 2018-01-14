@@ -1,64 +1,40 @@
-# Adding a New Op
+# 添加一个新操作（Op）
 
-Note: By default [tensorflow.org](http://tensorflow.org) shows docs for the
-most recent stable version. The instructions in this doc require building from
-source. You will probably want to build from the `master` version of tensorflow.
-You should, as a result, be sure you are following the
-[`master` version of this doc](https://www.tensorflow.org/versions/master/extend/adding_an_op),
-in case there have been any changes.
+注意：默认情况下，[TensorFlow 官网](http://tensorflow.org) 显示的是最新稳定版的文档。
+本文档中的用法说明针对的是从源码构建的 TensorFlow。你很可能希望从 TensorFlow 的 `master` 版本开始构建。
+那么，你就应该采纳[本文档的 `master` 版本](https://www.tensorflow.org/versions/master/extend/adding_an_op)
+中的用法，两种版本之间是有可能存在变动的。
 
-If you'd like to create an op that isn't covered by the existing TensorFlow
-library, we recommend that you first try writing the op in Python as
-a composition of existing Python ops or functions. If that isn't possible, you
-can create a custom C++ op. There are several reasons why you might want to
-create a custom C++ op:
+如果你想要创建一个在已有 TensorFlow 库中不存在的操作，我们建议你先从 Python 入手，即写一个已有 Python 操作或函数的复合操作。
+如果这样不可行，你就需要创建一个定制的 C++ 操作了。下面是你可能需要这样做的一些理由：
 
-*   It's not easy or possible to express your operation as a composition of
-    existing ops.
-*   It's not efficient to express your operation as a composition of existing
-    primitives.
-*   You want to hand-fuse a composition of primitives that a future compiler
-    would find difficult fusing.
+*   将你的操作表示成复合操作不太容易或不可能。
+*   已有基本操作的复合操作效率不高。
+*   你想手工融合一些基本操作的复合，因为未来的编译器做这种融合可能会比较困难。
 
-For example, imagine you want to implement something like "median pooling",
-similar to the "MaxPool" operator, but computing medians over sliding windows
-instead of maximum values.  Doing this using a composition of operations may be
-possible (e.g., using ExtractImagePatches and TopK), but may not be as
-performance- or memory-efficient as a native operation where you can do
-something more clever in a single, fused operation. As always, it is typically
-first worth trying to express what you want using operator composition, only
-choosing to add a new operation if that proves to be difficult or inefficient.
+比如，假设你希望实现类似于“最大值池化（MaxPool）”的“中值池化”操作，只不过不再是计算最大值，而是在滑动窗口上计算中值。
+这种操作是可能用已有操作复合得到的，比如使用 ExtractImagePatches 和 TopK，但是这可能在性能上、或内存开销上不如原生操作，
+因为你可以在单一的融合操作中采用一些高明的策略。大体上，首先尝试用复合操作来实现你的想法总是值得一试的，只有当复合操作很困难或
+低效时才考虑添加一个新的操作。
 
-To incorporate your custom op you'll need to:
+为了加入一个定制操作，你需要做如下工作：
 
-1.  Register the new op in a C++ file. Op registration defines an interface
-    (specification) for the op's functionality, which is independent of the
-    op's implementation. For example, op registration defines the op's name and
-    the op's inputs and outputs. It also defines the shape function
-    that is used for tensor shape inference.
-2.  Implement the op in C++. The implementation of an op is known
-    as a kernel, and it is the concrete implementation of the specification you
-    registered in Step 1. There can be multiple kernels for different input /
-    output types or architectures (for example, CPUs, GPUs).
-3.  Create a Python wrapper (optional). This wrapper is the public API that's
-    used to create the op in Python. A default wrapper is generated from the
-    op registration, which can be used directly or added to.
-4.  Write a function to compute gradients for the op (optional).
-5.  Test the op. We usually do this in Python for convenience, but you can also
-    test the op in C++. If you define gradients, you can verify them with the
-    Python @{tf.test.compute_gradient_error$gradient checker}.
-    See
-    [`relu_op_test.py`](https://www.tensorflow.org/code/tensorflow/python/kernel_tests/relu_op_test.py) as
-    an example that tests the forward functions of Relu-like operators and
-    their gradients.
+1.  在一个 C++ 文件中注册这个新操作。操作的注册为此操作的功能定义了一个接口（规范）。
+    比如，操作的注册定义了此操作的名称和它的输入输出。它还定义了 shape 函数，用于获取张量的形状。
+2.  用 C++ 实现这个操作。一个操作的实现又被称为一个内核，它是你在上一步注册的规范的一个具体实现。
+    对于不同的输入输出类型或架构（比如不同的 CPU 或 GPU），可能要实现不同的内核。
+3.  创建一个 Python 包装器（可选）。这个包装器为此操作的公共 API，用于在 Python 中创建此操作。
+    从操作的注册中可以产生一个默认的包装器，它可以直接使用，或加入。
+4.  编写一个函数来计算此操作的梯度（可选）。
+5.  测试此操作。为方便起见，我们通常在 Python 中测试，但也你可以在 C++ 中测试。如果你定义了梯度，
+    你可以用 Python 的 @{tf.test.compute_gradient_error$梯度检查器} 来验证。参见脚本 
+     [`relu_op_test.py`](https://www.tensorflow.org/code/tensorflow/python/kernel_tests/relu_op_test.py)，
+     它提供了一个例子，展示如何测试类似于 Relu 的算子的前向函数及梯度。
 
-PREREQUISITES:
+先决条件：
 
-*   Some familiarity with C++.
-*   Must have installed the
-    @{$install$TensorFlow binary}, or must have
-    @{$install_sources$downloaded TensorFlow source},
-    and be able to build it.
+*   熟悉 C++
+*   必须安装有 @{$install$TensorFlow 二进制代码}，或必须下载有 @{$install_sources$TensorFlow 源码}，并能够构建
 
 [TOC]
 
