@@ -393,8 +393,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
-:              :             : (每步时间)  :               :               :
+|     优化      |    数据格式  |  图像数目/秒 <br> (每步时间)  |  Intra 线程数  |   Inter 线程数 |
 | ------------ | ----------- | ------------ | ------------- | ------------- |
 | AVX2         | NHWC        | 7.0 (142ms)  | 4             | 0             |
 | MKL          | NCHW        | 6.6 (152ms)  | 4             | 1             |
@@ -412,8 +411,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
-:              :             : (每步时间)  :               :               :
+|     优化      |    数据格式  |  图像数目/秒 <br> (每步时间)  |  Intra 线程数  |   Inter 线程数 |
 | ------------ | ----------- | ------------- | ------------- | ------------- |
 | MKL          | NCHW        | 10.3          | 4             | 1             |
 :              :             : (3,104ms)     :               :               :
@@ -442,8 +440,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
-:              :             : (每步时间)  :               :               :
+|     优化      |    数据格式  |  图像数目/秒 <br> (每步时间)  |  Intra 线程数  |   Inter 线程数 |
 | ------------ | ----------- | ------------ | ------------- | ------------- |
 | AVX2         | NHWC        | 8.8 (113ms)  | 4             | 0             |
 | MKL          | NCHW        | 8.5 (120ms)  | 4             | 1             |
@@ -461,8 +458,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 --data_dir=<path to ImageNet TFRecords>
 ```
 
-| 优化 | 数据格式 | 图像数目/秒   | Intra 线程数 | Inter 线程数 |
-:              :             : (每步时间)  :               :               :
+|     优化      |    数据格式  |  图像数目/秒 <br> (每步时间)  |  Intra 线程数  |   Inter 线程数 |
 | ------------ | ----------- | ------------- | ------------- | ------------- |
 | MKL          | NCHW        | 12.4          | 4             | 1             |
 :              :             : (2,590ms)     :               :               :
