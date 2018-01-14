@@ -413,8 +413,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 |     优化      |    数据格式  |  图像数目/秒 <br> (每步时间)  |  Intra 线程数  |   Inter 线程数 |
 | ------------ | ----------- | ------------- | ------------- | ------------- |
-| MKL          | NCHW        | 10.3          | 4             | 1             |
-:              :             : (3,104ms)     :               :               :
+| MKL          | NCHW        | 10.3 (3,104ms)         | 4             | 1             |
 | AVX2         | NHWC        | 7.5 (4,255ms) | 4             | 0             |
 | AVX          | NHWC        | 5.1 (6,275ms) | 4             | 0             |
 | SSE3         | NHWC        | 2.8 (11,428ms)| 4             | 0             |
@@ -460,8 +459,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 |     优化      |    数据格式  |  图像数目/秒 <br> (每步时间)  |  Intra 线程数  |   Inter 线程数 |
 | ------------ | ----------- | ------------- | ------------- | ------------- |
-| MKL          | NCHW        | 12.4          | 4             | 1             |
-:              :             : (2,590ms)     :               :               :
+| MKL          | NCHW        | 12.4 (2,590ms)      | 4             | 1             |
 | AVX2         | NHWC        | 10.4 (3,079ms)| 4             | 0             |
 | AVX          | NHWC        | 7.3 (4,4416ms)| 4             | 0             |
 | SSE3         | NHWC        | 4.0 (8,054ms) | 4             | 0             |
