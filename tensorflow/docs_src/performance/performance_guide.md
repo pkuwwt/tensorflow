@@ -26,11 +26,10 @@
 
 *   通过运行 `nvidia-smi -l 2` 来检查一个 GPU 是否已经在使用。如果 GPU 利用率没有接近 80-100%，则此输入管线可能是个瓶颈。
 *   生成一个时间线，并检查它是否有大块的空白时间段（等待时间）。生成时间线的示例参见教程 @{$jit$XLA JIT}。
-*   检查 CPU 使用情况。
+*   检查 CPU 使用情况。有可能出现的情况是：管线已经优化，却仍然没有足够的 CPU 时钟来处理这个管线。
+*   估计所需的吞吐量，确认磁盘可以应付这样规模的吞吐量。一些云
 
-*   Check CPU usage. It is possible to have an optimized input pipeline and lack
-    the CPU cycles to process the pipeline.
-*   Estimate the throughput needed and verify the disk used is capable of that
+*   Estimate the throughput needed and verify the disk used is capable of that
     level of throughput. Some cloud solutions have network attached disks that
     start as low as 50 MB/sec, which is slower than spinning disks (150 MB/sec),
     SATA SSDs (500 MB/sec), and PCIe SSDs (2,000+ MB/sec).
