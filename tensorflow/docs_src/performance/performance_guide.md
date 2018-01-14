@@ -312,43 +312,34 @@ bazel build --config=mkl --copt="-DEIGEN_USE_VML" -c opt //tensorflow/tools/pip_
 
 #### MKL 调参以实现性能最优
 
-This section details the different configurations and environment variables that
-can be used to tune the MKL to get optimal performance. Before tweaking various
-environment variables make sure the model is using the `NCHW` (`channels_first`)
-[data format](#data-formats). The MKL is optimized for `NCHW` and Intel is
-working to get near performance parity when using `NHWC`.
+本节详细介绍不同的配置和环境变量，用来调节 MKL 实现最优性能。在调整这些不同的环境变量之前，需要
+确认模型正在使用的是 `NCHW` [数据格式](#数据格式)，即 `通道优先（channels_first）`格式。
+MKL 是针对 `NCHW` 来做优化的，至于 `NHWC`，Intel 对它的优化工作还在进行当中。
 
-MKL uses the following environment variables to tune performance:
+MKL 使用下列环境变量来调节性能：
 
-*   KMP_BLOCKTIME - Sets the time, in milliseconds, that a thread should wait,
-    after completing the execution of a parallel region, before sleeping.
-*   KMP_AFFINITY - Enables the run-time library to bind threads to physical
-    processing units.
-*   KMP_SETTINGS - Enables (true) or disables (false) the printing of OpenMP*
-    run-time library environment variables during program execution.
-*   OMP_NUM_THREADS - Specifies the number of threads to use.
+*   KMP_BLOCKTIME - 设置线程在执行完一个并行计算区域之后进入睡眠之前的等待时间，单位是毫秒
+*   KMP_AFFINITY - 启用运行时库来将线程绑定到物理处理单元上
+*   KMP_SETTINGS - 启用（true）或禁用（false）程序执行过程中 OpenMP* 运行时库环境变量的打印
+*   OMP_NUM_THREADS - 指定使用的线程数
 
-More details on the KMP variables are on
-[Intel's](https://software.intel.com/en-us/node/522775) site and the OMP
-variables on
-[gnu.org](https://gcc.gnu.org/onlinedocs/libgomp/Environment-Variables.html)
+关于 KMP 变量的更多详情参见 [Intel网站](https://software.intel.com/en-us/node/522775)，
+OMP 变量则参见 [gnu.org](https://gcc.gnu.org/onlinedocs/libgomp/Environment-Variables.html)。
 
-While there can be substantial gains from adjusting the environment variables,
-which is discussed below, the simplified advice is to set the
-`inter_op_parallelism_threads` equal to the number of physical CPUs and to set
-the following environment variables:
+虽然调节这些环境变量获益良多（后面会讨论到），但简化版的建议为：将 `inter_op_parallelism_threads`
+设置为物理 CPU 核心数目，并设置下面的环境变量：
 
 *   KMP_BLOCKTIME=0
 *   KMP_AFFINITY=granularity=fine,verbose,compact,1,0
 
-Example setting MKL variables with command-line arguments:
+下面是用命令参数设置 MKL 变量的示例：
 
 ```bash
 KMP_BLOCKTIME=0 KMP_AFFINITY=granularity=fine,verbose,compact,1,0 \
 KMP_SETTINGS=1 python your_python_script.py
 ```
 
-Example setting MKL variables with python `os.environ`:
+下面是用 python 的 `os.environ` 来设置 MKL 变量的示例：
 
 ```python
 os.environ["KMP_BLOCKTIME"] = str(FLAGS.kmp_blocktime)
@@ -359,44 +350,27 @@ if FLAGS.num_intra_threads > 0:
 
 ```
 
-There are models and hardware platforms that benefit from different settings.
-Each variable that impacts performance is discussed below.
+不同的设置会让一些模型和硬件平台受益。下面，讨论了影响性能的每一个变量。
 
-*   **KMP_BLOCKTIME**: The MKL default is 200ms, which was not optimal in our
-    testing. 0 (0ms) was a good default for CNN based models that were tested.
-    The best performance for AlexNex was achieved at 30ms and both GoogleNet and
-    VGG11 performed best set at 1ms.
+*   **KMP_BLOCKTIME**： MKL 中该变量默认为 200ms，但这在我们的测试中并不是最优的。
+    在我们的测试中，0 (0ms) 对于基于 CNN 的模型是一个不错的默认值。对于 AlexNet 模型，最优值为 30ms，而 GoogleNet 和 VGG11 都为 1ms。
 
-*   **KMP_AFFINITY**: The recommended setting is
-    `granularity=fine,verbose,compact,1,0`.
+*   **KMP_AFFINITY**：建议设置为 `granularity=fine,verbose,compact,1,0` 。
 
-*   **OMP_NUM_THREADS**: This defaults to the number of physical cores.
-    Adjusting this parameter beyond matching the number of cores can have an
-    impact when using Intel® Xeon Phi™ (Knights Landing) for some models. See
-    [TensorFlow* Optimizations on Modern Intel® Architecture](https://software.intel.com/en-us/articles/tensorflow-optimizations-on-modern-intel-architecture)
-    for optimal settings.
+*   **OMP_NUM_THREADS**: 默认值为物理核心数目。调整此参数时，如果其值超过核心数目，则会对某些模型在 Intel® Xeon Phi™ (Knights Landing) 芯片上的性能产生影响。关于 Intel 优化的详情，参见[现代 Intel® 架构上的 TensorFlow* 优化](https://software.intel.com/en-us/articles/tensorflow-optimizations-on-modern-intel-architecture)一文。 
 
-*   **intra_op_parallelism_threads**: Setting this equal to the number of
-    physical cores is recommended. Setting the value to 0, which is the default
-    and will result in the value being set to the number of logical cores, is an
-    option to try for some architectures.  This value and `OMP_NUM_THREADS`
-    should be equal.
+*   **intra_op_parallelism_threads**： 推荐设置为物理核心数目。默认为 0，意为逻辑核心数目，这对于某些架构而言，是一个可行选项。这个变量的值应该和 `OMP_NUM_THREADS` 保持一致。
 
-*   **inter_op_parallelism_threads**: Setting this equal to the number of
-    sockets is recommended. Setting the value to 0, which is the default,
-    results in the value being set to the number of logical cores.
+*   **inter_op_parallelism_threads**： 推荐设置为套接字数目。默认为 0，意为逻辑核心数目。
 
 ### 编译器优化的对比
 
-Collected below are performance results running training and inference on
-different types of CPUs on different platforms with various compiler
-optimizations.  The models used were ResNet-50
-([arXiv:1512.03385](https://arxiv.org/abs/1512.03385)) and
-InceptionV3 ([arXiv:1512.00567](https://arxiv.org/abs/1512.00567)).
+下面的内容中整理了在不同平台、不同类型 CPU、以及不同编译器优化的情况下的训练和推理时的性能测试结果。 
+我们测试的模型包括 ResNet-50 ([arXiv:1512.03385](https://arxiv.org/abs/1512.03385)) 和
+InceptionV3 ([arXiv:1512.00567](https://arxiv.org/abs/1512.00567))。
 
-For each test, when the MKL optimization was used the environment variable
-KMP_BLOCKTIME was set to 0 (0ms) and KMP_AFFINITY to
-`granularity=fine,verbose,compact,1,0`.
+对于每个测试，当用到 MKL 优化时，环境变量 KMP_BLOCKTIME 都被设置为 0 (0ms)，而 KMP_AFFINITY 被
+设置为 `granularity=fine,verbose,compact,1,0`。
 
 #### 推理 InceptionV3
 
