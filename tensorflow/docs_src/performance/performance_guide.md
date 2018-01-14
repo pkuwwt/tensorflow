@@ -1,29 +1,23 @@
-# Performance Guide
+# 性能指南
 
-This guide contains a collection of best practices for optimizing TensorFlow
-code. The guide is divided into a few sections:
+本指南包含了一些优化 TensorFlow 代码的最佳实践，它包含以下几节内容：
 
-*   [General best practices](#general_best_practices) covers topics that are
-    common across a variety of model types and hardware.
-*   [Optimizing for GPU](#optimizing_for_gpu) details tips specifically relevant
-    to GPUs.
-*   [Optimizing for CPU](#optimizing_for_cpu) details CPU specific information.
+*   [一般性最佳实践](#一般性最佳实践) 涵盖多种模型类型和硬件的通用主题。
+*   [GPU 上的优化](#GPU_上的优化) 针对 GPU 的相关技巧的细节。
+*   [CPU 上的优化](#CPU_上的优化) 针对 CPU 的细节。
 
-## General best practices
+## 一般性最佳实践
 
-The sections below cover best practices that are relevant to a variety of
-hardware and models. The best practices section is broken down into the
-following sections:
+下面的几节内容为涵盖多种硬件和模型的最佳实践，它们是：
 
-*   [Input pipeline optimizations](#input-pipeline-optimization)
-*   [Data formats](#data-formats)
-*   [Common fused Ops](#common-fused-ops)
-*   [Building and installing from source](#building-and-installing-from-source)
+*   [输入管线的优化](#输入管线的优化)
+*   [数据格式](#数据格式)
+*   [通用的融合操作](#通用的融合操作)
+*   [从源码构建和安装](#从源码构建和安装)
 
-### Input pipeline optimization
+### 输入管线的优化
 
-Typical models retrieve data from disk and preprocess it before sending the data
-through the network. For example, models that process JPEG images will follow
+典型的模型会从磁盘加载数据，然后处理并发送到网络中。For example, models that process JPEG images will follow
 this flow: load image from disk, decode JPEG into a tensor, crop and pad,
 possibly flip and distort, and then batch. This flow is referred to as the input
 pipeline. As GPUs and other hardware accelerators get faster, preprocessing of
