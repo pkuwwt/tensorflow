@@ -3,8 +3,8 @@
 本指南包含了一些优化 TensorFlow 代码的最佳实践，它包含以下几节内容：
 
 *   [一般性最佳实践](#一般性最佳实践) 涵盖多种模型类型和硬件的通用主题。
-*   [GPU 上的优化](#GPU_上的优化) 针对 GPU 的相关技巧的细节。
-*   [CPU 上的优化](#CPU_上的优化) 针对 CPU 的细节。
+*   [GPU 上的优化](#GPU-上的优化) 针对 GPU 的相关技巧的细节。
+*   [CPU 上的优化](#CPU-上的优化) 针对 CPU 的细节。
 
 ## 一般性最佳实践
 
@@ -122,25 +122,19 @@ bn = tf.contrib.layers.batch_norm(input_layer, fused=True, data_format='NCHW')
 下面的命令展示了使用 `bazel` 针对特定平台进行编译的示例。
 
 ```python
-# This command optimizes for Intel’s Broadwell processor
+# 此命令针对 Intel 的 Broadwell 处理器进行优化
 bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pip_package:build_pip_package
 ```
 
 #### 环境、构建和安装技巧
 
-*   `./configure` asks which compute capability to include in the build. This
-    does not impact overall performance but does impact initial startup. After
-    running TensorFlow once, the compiled kernels are cached by CUDA. If using
-    a docker container, the data is not cached and the penalty is paid each time
-    TensorFlow starts. The best practice is to include the
-    [compute capabilities](http://developer.nvidia.com/cuda-gpus)
-    of the GPUs that will be used, e.g. P100: 6.0, Titan X (Pascal): 6.1, Titan
-    X (Maxwell): 5.2, and K80: 3.7.
-*   Use a version of gcc that supports all of the optimizations of the target
-    CPU. The recommended minimum gcc version is 4.8.3. On OS X, upgrade to the
-    latest Xcode version and use the version of clang that comes with Xcode.
-*   Install the latest stable CUDA platform and cuDNN libraries supported by
-    TensorFlow.
+*   `./configure` 命令是为了确定在构建中包含哪些计算能力。它不影响整体性能，但会影响初始启动。
+    运行 TensorFlow 一次之后，编译的内核会被缓存到 CUDA 中。如果使用 docker 容器，这个数据将
+    得不到缓存，因而每次 TensorFlow 启动时都会因此而变慢。最好的办法是将需要用到的 GPU 的[计算能力](http://developer.nvidia.com/cuda-gpus)
+    包含进来，比如 P100 为 6.0，Titan X (Pascal) 为 6.1，Titan X (Maxwell) 为 5.2，K80 为 3.7。
+*   选择一个版本的 gcc ，要求能够支持目标 CPU 能提供的所有优化。推荐的最低的 gcc 版本为 4.8.3。
+    在 OS X 上，更新到最新的 Xcode 版本，并使用 Xcode 自带的那个版本的 clang。
+*   安装 TensorFlow 能够支持的最新的稳定版 CUDA 平台和 cuDNN 库。
 
 ## GPU 上的优化
 
