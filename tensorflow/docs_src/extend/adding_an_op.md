@@ -62,28 +62,20 @@ REGISTER_OP("ZeroOut")
     });
 ```
 
-于是，我们注册了一个名为 `ZeroOut` 的操作，它的输入是 32 比特
+于是，我们注册了一个名为 `ZeroOut` 的操作，它的输入（命名为 `to_zero`）和输出（命名为 `zeroed`）都是 32 比特整数类型的张量。
+此操作利用一个形状函数来确保输出张量的形状与输入张量保持一致。比如，如果输入张量的形状为 [10, 20]，则此形状函数将输出张量的形状也
+指定为 [10, 20]。
 
-This `ZeroOut` op takes one tensor `to_zero` of 32-bit integers as input, and
-outputs a tensor `zeroed` of 32-bit integers. The op also uses a shape function
-to ensure that the output tensor is the same shape as the input tensor. For
-example, if the input is a tensor of shape [10, 20], then this shape function
-specifies that the output shape is also [10, 20].
+>   关于命名的备注：操作名称必须首字母大写，而且不能和库中已经注册的其它操作重名。
 
+## 实现操作的内核
 
->   A note on naming: The op name must be in CamelCase and it must be unique
->   among all other ops that are registered in the binary.
+定义了接口之后，接下来就需要为此操作提供一个或多个内核实现了。
+为了实现这些内核，创建一个继承自 `OpKernel` 的类，并重载 `Compute` 方法。 
+`Compute` 方法有一个类型为 `OpKernelContext*` 的参数 `context`，根据这个参数可以访问到一些有用信息，
+比如输入输出张量。
 
-## Implement the kernel for the op
-
-After you define the interface, provide one or more implementations of the op.
-To create one of these kernels, create a class that extends `OpKernel` and
-overrides the `Compute` method. The `Compute` method provides one `context`
-argument of type `OpKernelContext*`, from which you can access useful things
-like the input and output tensors.
-
-Add your kernel to the file you created above. The kernel might look something
-like this:
+将你的内核加到上面创建的文件中。这个内核的代码形如：
 
 ```c++
 #include "tensorflow/core/framework/op_kernel.h"
@@ -95,72 +87,61 @@ class ZeroOutOp : public OpKernel {
   explicit ZeroOutOp(OpKernelConstruction* context) : OpKernel(context) {}
 
   void Compute(OpKernelContext* context) override {
-    // Grab the input tensor
-    const Tensor& input_tensor = context->input(0);
+    // 得到输入张量
+    const Tensor& input_tensor = context->input(0);
     auto input = input_tensor.flat<int32>();
 
-    // Create an output tensor
+    // 创建输出张量
     Tensor* output_tensor = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(),
                                                      &output_tensor));
     auto output_flat = output_tensor->flat<int32>();
 
-    // Set all but the first element of the output tensor to 0.
+    // 除第一个元素外，输出张量的其它所有元素都设置为 0 
     const int N = input.size();
     for (int i = 1; i < N; i++) {
       output_flat(i) = 0;
     }
 
-    // Preserve the first input value if possible.
+    // 如果可能的话，保留第一个输入值
     if (N > 0) output_flat(0) = input(0);
   }
 };
 ```
 
-After implementing your kernel, you register it with the TensorFlow system. In
-the registration, you specify different constraints under which this kernel
-will run. For example, you might have one kernel made for CPUs, and a separate
-one for GPUs.
+实现完内核之后，将其注册到 TensorFlow 系统中。在注册中，你还要指定此内核运行时不同约束条件。
+比如，你可能有一个内核是针对 CPU 的，而还有一个是针对 GPU 的。
 
-To do this for the `ZeroOut` op, add the following to `zero_out.cc`:
+为了给 `ZeroOut` 操作加上约束条件，将下面的代码加到 `zero_out.cc` 文件中：
 
 ```c++
 REGISTER_KERNEL_BUILDER(Name("ZeroOut").Device(DEVICE_CPU), ZeroOutOp);
 ```
 
->   Important: Instances of your OpKernel may be accessed concurrently.
->   Your `Compute` method must be thread-safe. Guard any access to class
->   members with a mutex. Or better yet, don't share state via class members!
->   Consider using a [`ResourceMgr`](https://www.tensorflow.org/code/tensorflow/core/framework/resource_mgr.h)
->   to keep track of op state.
+>   重要提示：你的 OpKernel 子类的实例有可能会被并发访问，所以 `Compute` 方法必须是线程安全的。
+>   可以用线程互斥锁来保护类成员的每一次访问。更好的办法是，不要通过类成员来共享状态！
+>   可以考虑使用一个 [`ResourceMgr`](https://www.tensorflow.org/code/tensorflow/core/framework/resource_mgr.h)
+>   来跟踪操作的状态。
 
-### Multi-threaded CPU kernels
+### 多线程 CPU 内核
 
-To write a multi-threaded CPU kernel, the Shard function in
+为了编写一个多线程 CPU 内核，可使用́
 [`work_sharder.h`](https://www.tensorflow.org/code/tensorflow/core/util/work_sharder.h)
-can be used. This function shards a computation function across the
-threads configured to be used for intra-op threading (see
-intra_op_parallelism_threads in
-[`config.proto`](https://www.tensorflow.org/code/tensorflow/core/protobuf/config.proto)).
+中的 Shared 函数。在 intro-op 线程模式下，此函数让不同的线程共享同一个计算函数（参见 
+[`config.proto`](https://www.tensorflow.org/code/tensorflow/core/protobuf/config.proto) 中定义的 intra_op_parallelism_threads  模式）。
 
-### GPU kernels
+### GPU 内核
 
-A GPU kernel is implemented in two parts: the OpKernel and the CUDA kernel and
-its launch code.
+一个 GPU 内核的实现包括两个部分：OpKernel 子类、CUDA 内核及其启动代码。
 
-Sometimes the OpKernel implementation is common between a CPU and GPU kernel,
-such as around inspecting inputs and allocating outputs.  In that case, a
-suggested implementation is to:
+有时候 OpKernel 实现可由 CPU 和 GPU 内核共享，这一部分代码可以完成诸如检查输入和创建输出之类的任务。
+如果采用这种方案，则我们建议用如下实现方式：
 
-1. Define the OpKernel templated on the Device and the primitive type of the
-   tensor.
-2. To do the actual computation of the output, the Compute function calls a
-    templated functor struct.
-3. The specialization of that functor for the CPUDevice is defined in the same
-   file, but the specialization for the GPUDevice is defined in a .cu.cc file,
-   since it will be compiled with the CUDA compiler.
+1. 为适应多种设备，要定义模板化的 OpKernel，并定义张量的基本类型
+2. 为了实际计算输出， Compute 函数要调用一个模板化的函子结构
+3. 此函子针对 CPU 设备（CPUDevice）的模板特化可在同一个文件中定义，但针对 GPU 设备（GPUDevice）的模板特化要单独定义在一个 .cu.cc 文件中，因为它需要用 CUDA 编译器来编译。
 
-Here is an example implementation.
+下面是一个实现的示例：
 
 ```c++
 // kernel_example.h
@@ -193,7 +174,7 @@ using namespace tensorflow;
 using CPUDevice = Eigen::ThreadPoolDevice;
 using GPUDevice = Eigen::GpuDevice;
 
-// CPU specialization of actual computation.
+// 实际计算的 CPU 模板特化
 template <typename T>
 struct ExampleFunctor<CPUDevice, T> {
   void operator()(const CPUDevice& d, int size, const T* in, T* out) {
@@ -203,23 +184,23 @@ struct ExampleFunctor<CPUDevice, T> {
   }
 };
 
-// OpKernel definition.
-// template parameter <T> is the datatype of the tensors.
+// OpKernel 子类的定义
+// 模板参数 <T> 为张量的数据类型
 template <typename Device, typename T>
 class ExampleOp : public OpKernel {
  public:
   explicit ExampleOp(OpKernelConstruction* context) : OpKernel(context) {}
 
   void Compute(OpKernelContext* context) override {
-    // Grab the input tensor
+    // 获得输入张量
     const Tensor& input_tensor = context->input(0);
 
-    // Create an output tensor
+    // 创建输出张量
     Tensor* output_tensor = NULL;
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(),
                                                      &output_tensor));
 
-    // Do the computation.
+    // 计算
     OP_REQUIRES(context, input_tensor.NumElements() <= tensorflow::kint32max,
                 errors::InvalidArgument("Too many elements in tensor"));
     ExampleFunctor<Device, T>()(
@@ -230,7 +211,7 @@ class ExampleOp : public OpKernel {
   }
 };
 
-// Register the CPU kernels.
+// 注册 CPU 上的内核́́
 #define REGISTER_CPU(T)                                          \
   REGISTER_KERNEL_BUILDER(                                       \
       Name("Example").Device(DEVICE_CPU).TypeConstraint<T>("T"), \
@@ -238,10 +219,10 @@ class ExampleOp : public OpKernel {
 REGISTER_CPU(float);
 REGISTER_CPU(int32);
 
-// Register the GPU kernels.
+// 注册 GPU 上的内核
 #ifdef GOOGLE_CUDA
 #define REGISTER_GPU(T)                                          \
-  /* Declare explicit instantiations in kernel_example.cu.cc. */ \
+  /* 在 kernel_example.cu.cc 中显式声明模板实例化 */ \
   extern template ExampleFunctor<GPUDevice, float>;              \
   REGISTER_KERNEL_BUILDER(                                       \
       Name("Example").Device(DEVICE_GPU).TypeConstraint<T>("T"), \
@@ -262,7 +243,7 @@ using namespace tensorflow;
 
 using GPUDevice = Eigen::GpuDevice;
 
-// Define the CUDA kernel.
+// 定义 CUDA 内核́
 template <typename T>
 __global__ void ExampleCudaKernel(const int size, const T* in, T* out) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < size;
@@ -271,37 +252,35 @@ __global__ void ExampleCudaKernel(const int size, const T* in, T* out) {
   }
 }
 
-// Define the GPU implementation that launches the CUDA kernel.
+// 定义启动 CUDA 内核的 GPU 实现
 template <typename T>
 void ExampleFunctor<GPUDevice, T>::operator()(
     const GPUDevice& d, int size, const T* in, T* out) {
-  // Launch the cuda kernel.
+  // 启动 CUDA 内核
   //
-  // See core/util/cuda_kernel_helper.h for example of computing
-  // block count and thread_per_block count.
+  // 参见 core/util/cuda_kernel_helper.h 中的计算线程块数目和每块线程数（thread_per_block）的示例
   int block_count = 1024;
   int thread_per_block = 20;
   ExampleCudaKernel<T>
       <<<block_count, thread_per_block, 0, d.stream()>>>(size, in, out);
 }
 
-// Explicitly instantiate functors for the types of OpKernels registered.
+// 显式示例化函子，这些函子用于处理注册的那些 OpKernel 支持的类型
 template struct ExampleFunctor<GPUDevice, float>;
 template struct ExampleFunctor<GPUDevice, int32>;
 
 #endif  // GOOGLE_CUDA
 ```
 
-## Build the op library
-### Compile the op using your system compiler (TensorFlow binary installation)
+## 构建操作的库文件
+### 用系统编译器来编译操作（TensorFlow 二进制安装）
 
-You should be able to compile `zero_out.cc` with a `C++` compiler such as `g++`
-or `clang` available on your system. The binary PIP package installs the header
-files and the library that you need to compile your op in locations that are
-system specific. However, the TensorFlow python library provides the
-`get_include` function to get the header directory, and the `get_lib` directory
-has a shared object to link against.
-Here are the outputs of these functions on an Ubuntu machine.
+你可以用 `C++` 编译器来编译 `zero_out.cc`，比如你的系统上的 `g++` 或 `clang` 都是可以的。
+用 PIP 包管理器来安装二进制 TensorFlow 时，已经包含了编译操作所需的头文件和库文件，具体的安装目录则取决于你的操作系统。
+不过，TensorFlow 的 python 库提供了 `get_include` 函数来获得头文件目录位置，也提供了 `get_lib` 函数来获得链接所需
+库文件的目录位置。
+
+下面是 Ubuntu 机器上这两个函数的输出结果：
 
 ```bash
 $ python
