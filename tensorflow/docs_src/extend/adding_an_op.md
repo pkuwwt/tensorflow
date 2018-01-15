@@ -291,8 +291,7 @@ $ python
 '/usr/local/lib/python2.7/site-packages/tensorflow'
 ```
 
-Assuming you have `g++` installed, here is the sequence of commands you can use
-to compile your op into a dynamic library.
+假如你的系统上安装了 `g++`，下面的命令可于将你的操作编译成一个动态库。
 
 ```bash
 TF_INC=$(python -c 'import tensorflow as tf; print(tf.sysconfig.get_include())')
@@ -300,23 +299,17 @@ TF_LIB=$(python -c 'import tensorflow as tf; print(tf.sysconfig.get_lib())')
 g++ -std=c++11 -shared zero_out.cc -o zero_out.so -fPIC -I$TF_INC -I$TF_INC/external/nsync/public -L$TF_LIB -ltensorflow_framework -O2
 ```
 
-On Mac OS X, the additional flag "-undefined dynamic_lookup" is required when
-building the `.so` file.
+在 Mac OS X 上，构建 `.so` 文件时还需要额外的编译标志 "-undefined dynamic_lookup" 。
 
->   Note on `gcc` version `>=5`: gcc uses the new C++
->   [ABI](https://gcc.gnu.org/gcc-5/changes.html#libstdcxx) since version `5`. The binary pip
->   packages available on the TensorFlow website are built with `gcc4` that uses
->   the older ABI. If you compile your op library with `gcc>=5`, add
->   `-D_GLIBCXX_USE_CXX11_ABI=0` to the command line to make the library
->   compatible with the older abi.
->   Furthermore if you are using TensorFlow package created from source remember to add `--cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0"`
->   as bazel command to compile the Python package.
+>   注意，如果 `gcc` 版本 `>=5`，则 gcc 使用的新的 C++ [ABC](https://gcc.gnu.org/gcc-5/changes.html#libstdcxx)。
+>   TensorFlow 官网上提供的二进制 pip 包用的是 `gcc4`，即它用的旧的 ABI。如果你用 `gcc>=5` 来编译你的操作库文件，
+>   在命令行中加入 `-D_GLIBCXX_USE_CXX11_ABI=0` 来让生成的库文件与旧的 ABI 兼容。
+>   此外，如果你在用从源码构建的 TensorFlow ，记得在用 bazel 命令编译 Python 包时中加上编译选项 `--cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0"`。
 
-### Compile the op using bazel (TensorFlow source installation)
+### 使用 bazel 编译操作（TensorFlow 源码安装）
 
-If you have TensorFlow sources installed, you can make use of TensorFlow's build
-system to compile your op. Place a BUILD file with following Bazel build rule in
-the [`tensorflow/core/user_ops`][user_ops] directory.
+如果你有 TensorFlow 源码，则你可以利用 TensorFLow 的构建系统来编译你的操作。把一个 BUILD 文件放在 
+[`tensorflow/core/user_ops`][user_ops] 目录中，文件中为 Bazel 的构建规则，内容如下：
 
 ```python
 load("//tensorflow:tensorflow.bzl", "tf_custom_op_library")
@@ -327,26 +320,21 @@ tf_custom_op_library(
 )
 ```
 
-Run the following command to build `zero_out.so`.
+运行下列命令来构建 `zero_out.so`.
 
 ```bash
 $ bazel build --config opt //tensorflow/core/user_ops:zero_out.so
 ```
 
->   Note: Although you can create a shared library (a `.so` file) with the
->   standard `cc_library` rule, we strongly recommend that you use the
->   `tf_custom_op_library` macro. It adds some required dependencies, and
->   performs checks to ensure that the shared library is compatible with
->   TensorFlow's plugin loading mechanism.
+>   注意：虽然你可以用标准 `cc_library` 规则来生成一个共享库文件（`.so` 文件），
+>   我们还是强烈推荐使用 `tf_custom_op_library` 宏。这个宏加了一些必要的依赖项，
+>   而且还包含一些检查，以确保输出的共享库文件与 TensorFlow 的插件加载机制兼容。
 
-## Use the op in Python
+## 在 Python 中使用新的操作
 
-TensorFlow Python API provides the
-@{tf.load_op_library} function to
-load the dynamic library and register the op with the TensorFlow
-framework. `load_op_library` returns a Python module that contains the Python
-wrappers for the op and the kernel. Thus, once you have built the op, you can
-do the following to run it from Python:
+TensorFlow Python API 提供了 @{tf.load_op_library} 函数来加载动态链接库，并将其注册到 TensorFlow 框架中。
+`load_op_library` 返回一个 Python 模块，其中就包含了你的新操作的 Python 包装器，以及它的内核。
+因而，一旦你构建完操作，你就可以按下面的方式中在 Python 中让它运行起来了：
 
 ```python
 import tensorflow as tf
@@ -354,17 +342,14 @@ zero_out_module = tf.load_op_library('./zero_out.so')
 with tf.Session(''):
   zero_out_module.zero_out([[1, 2], [3, 4]]).eval()
 
-# Prints
+# 打印
 array([[1, 0], [0, 0]], dtype=int32)
 ```
 
-Keep in mind, the generated function will be given a snake\_case name (to comply
-with [PEP8](https://www.python.org/dev/peps/pep-0008/)). So, if your op is
-named `ZeroOut` in the C++ files, the python function will be called `zero_out`.
+需要注意，生成的函数采用蛇形命令规则（snake\_case），这是为了遵守 [PEP8](https://www.python.org/dev/peps/pep-0008/) 规范。
+所以，如果你的操作在 C++ 代码中命名为 `ZeroOut`，则它的 Python 函数名会变成 `zero_out`。
 
-To make the op available as a regular function `import`-able from a Python
-module, it maybe useful to have the `load_op_library` call in a Python source
-file as follows:
+为了让该操作可以像常规函数一样从某个模块中导入（`import`），则可以在 Python 源码中调用 `load_op_library` 函数：
 
 ```python
 import tensorflow as tf
@@ -373,11 +358,8 @@ zero_out_module = tf.load_op_library('./zero_out.so')
 zero_out = zero_out_module.zero_out
 ```
 
-## Verify that the op works
-
-A good way to verify that you've successfully implemented your op is to write a
-test for it. Create the file
-`zero_out_op_test.py` with the contents:
+## 确认操作是可行的
+确认你编写的操作是否可成功运行的一个好办法是写一个测试。创建文件 `zero_out_op_test.py`，内容如下：
 
 ```python
 import tensorflow as tf
@@ -393,39 +375,35 @@ if __name__ == "__main__":
   tf.test.main()
 ```
 
-Then run your test (assuming you have tensorflow installed):
+然后，运行该测试（假设你已经安装了 TensorFlow）：
 
 ```sh
 $ python zero_out_op_test.py
 ```
 
-## Building advanced features into your op
+## 在操作中加入高级功能
 
-Now that you know how to build a basic (and somewhat restricted) op and
-implementation, we'll look at some of the more complicated things you will
-typically need to build into your op. This includes:
+现在你已经知道如何实现和构建一个基本的操作（更恰当地说，是一个受限的操作），那么接下来，我们将介绍你在编写新操作时通常会用到的一些更复杂的功能，包括：
 
-*   [Conditional checks and validation](#conditional_checks_and_validation)
-*   [Op registration](#op_registration)
-    *   [Attrs](#attrs)
-    *   [Attr types](#attr_types)
-    *   [Polymorphism](#polymorphism)
-    *   [Inputs and outputs](#inputs_and_outputs)
-    *   [Backwards compatibility](#backwards_compatibility)
-*   [GPU support](#gpu_support)
-    *   [Compiling the kernel for the GPU device](#compiling_the_kernel_for_the_gpu_device)
-*   [Implement the gradient in Python](#implement_the_gradient_in_python)
-*   [Shape functions in C++](#shape_functions_in_c)
+*   [条件检查和验证](#conditional_checks_and_validation)
+*   [操作注册](#op_registration)
+    *   [属性](#attrs)
+    *   [属性类型](#attr_types)
+    *   [多态](#polymorphism)
+    *   [输入输出](#inputs_and_outputs)
+    *   [后向兼容](#backwards_compatibility)
+*   [GPU 支持](#gpu_support)
+    *   [为 GPU 设备编译内核](#compiling_the_kernel_for_the_gpu_device)
+*   [在 Python 中实现梯度计算](#implement_the_gradient_in_python)
+*   [C++ 中的形状函数](#shape_functions_in_c)
 
-### Conditional checks and validation
+### 条件检查和验证
 
-The example above assumed that the op applied to a tensor of any shape.  What
-if it only applied to vectors?  That means adding a check to the above OpKernel
-implementation.
+上述示例假定操作的输入是任意形状的张量。但如果我们只处理矢量呢？那么我们就需要在 OpKernel 的实现中加入一个检查：
 
 ```c++
   void Compute(OpKernelContext* context) override {
-    // Grab the input tensor
+    // 获得输入张量
     const Tensor& input_tensor = context->input(0);
 
     OP_REQUIRES(context, TensorShapeUtils::IsVector(input_tensor.shape()),
@@ -434,56 +412,42 @@ implementation.
   }
 ```
 
-This asserts that the input is a vector, and returns having set the
-`InvalidArgument` status if it isn't.  The
-[`OP_REQUIRES` macro][validation-macros] takes three arguments:
+这里我们加了一个断言，它要求输入是一个矢量，否则将设置 `InvalidArgument` 状态。
+[`OP_REQUIRES` 宏][validation-macros] 有三个参数：
 
-*   The `context`, which can either be an `OpKernelContext` or
-    `OpKernelConstruction` pointer (see
-    [`tensorflow/core/framework/op_kernel.h`](https://www.tensorflow.org/code/tensorflow/core/framework/op_kernel.h)),
-    for its `SetStatus()` method.
-*   The condition.  For example, there are functions for validating the shape
-    of a tensor in
-    [`tensorflow/core/framework/tensor_shape.h`](https://www.tensorflow.org/code/tensorflow/core/framework/tensor_shape.h)
-*   The error itself, which is represented by a `Status` object, see
-    [`tensorflow/core/lib/core/status.h`](https://www.tensorflow.org/code/tensorflow/core/lib/core/status.h). A
-    `Status` has both a type (frequently `InvalidArgument`, but see the list of
-    types) and a message.  Functions for constructing an error may be found in
-    [`tensorflow/core/lib/core/errors.h`][validation-macros].
+*   上下文 `context`：既可以是一个 `OpKernelContext`，也可以是一个 `OpKernelConstruction` 指针（参见
+    [`tensorflow/core/framework/op_kernel.h`](https://www.tensorflow.org/code/tensorflow/core/framework/op_kernel.h) 文件），宏
+    会调用它们的的 `SetStatus()` 方法。
+*   条件：关于检查形状的更多的函数，参见文件
+    [`tensorflow/core/framework/tensor_shape.h`](https://www.tensorflow.org/code/tensorflow/core/framework/tensor_shape.h)
+*   错误本身：它由一个 `Status` 对象表示，参见文件
+    [`tensorflow/core/lib/core/status.h`](https://www.tensorflow.org/code/tensorflow/core/lib/core/status.h)。
+    一个 `Status` 对象包含一个类型（常为 `InvalidArgument`，参见更多类型的列表）和一个消息。构建一个错误的函数参见文件
+    [`tensorflow/core/lib/core/errors.h`][validation-macros]。
 
-Alternatively, if you want to test whether a `Status` object returned from some
-function is an error, and if so return it, use
-[`OP_REQUIRES_OK`][validation-macros].  Both of these macros return from the
-function on error.
+另外，如果你想测试从某个函数返回的一个 `Status` 对象是否为错误，是的话就将错误返回，
+这时你可使用宏 [`OP_REQUIRES_OK`][validation-macros]。
+这两个宏都会在错误报错时返回错误对象。
 
-### Op registration
+### 操作的注册
 
-#### Attrs
+#### 属性
 
-Ops can have attrs, whose values are set when the op is added to a graph. These
-are used to configure the op, and their values can be accessed both within the
-kernel implementation and in the types of inputs and outputs in the op
-registration. Prefer using an input instead of an attr when possible, since
-inputs are more flexible. This is because attrs are constants and must be
-defined at graph construction time. In contrast, inputs are Tensors whose
-values can be dynamic; that is, inputs can change every step, be set using a
-feed, etc. Attrs are used for things that can't be done with inputs: any
-configuration that affects the signature (number or type of inputs or outputs)
-or that can't change from step-to-step.
+操作可以有属性，当一个操作被加到计算图中时，它的属性就会被赋值。这些属性用于配置此操作，它们的值既可以在内核实现中访问到，
+也可以在操作注册时的输入输出类型中访问到。相较于输入，参数的使用要尽量避免，因为输入更为灵活一些。这是因为属性是常数，
+必须在计算图构造时定义。 而输入作为张量，它的值是动态的；即输入的值在每一步都可以修改，比如使用 feed_dict。
+属性主要用于无法使用输入的场合：任何会影响到操作的特征（输入输出的数目和类型）的时候，或无法在每一步修改的时候。
 
-You define an attr when you register the op, by specifying its name and type
-using the `Attr` method, which expects a spec of the form:
+你需要在注册操作时定义属性，定义时要指定名称和使用 `Attr` 方法的类型，此方法的参数规范如下：
 
 ```
 <name>: <attr-type-expr>
 ```
 
-where `<name>` begins with a letter and can be composed of alphanumeric
-characters and underscores, and `<attr-type-expr>` is a type expression of the
-form [described below](#attr_types).
+其中 `<name>` 必须由字母开头，后面可以是字母、数字或下划线，而 `<attr-type-expr>` 一个类型表达式（参见[下方](#attr_types)）。
 
-For example, if you'd like the `ZeroOut` op to preserve a user-specified index,
-instead of only the 0th element, you can register the op like so:
+比如，如果你想让 `ZeroOut` 操作保留一个用户指定的下标，而不仅仅是第 0 个元素，你可以按下面的方式来注册操作：
+
 <pre class="prettyprint"><code class="lang-cpp">
 REGISTER\_OP("ZeroOut")
     <b>.Attr("preserve\_index: int")</b>
