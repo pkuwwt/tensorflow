@@ -31,24 +31,21 @@
      [`relu_op_test.py`](https://www.tensorflow.org/code/tensorflow/python/kernel_tests/relu_op_test.py)，
      它提供了一个例子，展示如何测试类似于 Relu 的算子的前向函数及梯度。
 
-先决条件：
+编写新操作代码前，你需要：
 
 *   熟悉 C++
 *   必须安装有 @{$install$TensorFlow 二进制代码}，或必须下载有 @{$install_sources$TensorFlow 源码}，并能够构建
 
 [TOC]
 
-## Define the op's interface
+## 定义操作接口
 
-You define the interface of an op by registering it with the TensorFlow system.
-In the registration, you specify the name of your op, its inputs (types and
-names) and outputs (types and names), as well as docstrings and
-any [attrs](#attrs) the op might require.
+操作接口的定义是通过在 TensorFlow 系统中注册来实现的。在此注册过程中，需要指定操作名称、输入（类型和名称）、
+输出（类型和名称），以及文档字符串和此操作要求的任何[属性](#属性)。
 
-To see how this works, suppose you'd like to create an op that takes a tensor of
-`int32`s and outputs a copy of the tensor, with all but the first element set to
-zero. To do this, create a file named `zero_out.cc`. Then add a call to the
-`REGISTER_OP` macro that defines the interface for your op:
+下面展示注册的具体过程。假设你想创建一个操作，其输入是一个 `int32` 类型的张量，而输出是此张量的一个副本，
+副本除第一个元素设为零之外其它都不变。为实现这样一个操作，我们先创建一个名称 `zero_out.cc` 的文件。然后调用 
+`REGISTER_OP` 这个宏，用它来定义你的操作：
 
 ```c++
 #include "tensorflow/core/framework/op.h"
@@ -64,6 +61,8 @@ REGISTER_OP("ZeroOut")
       return Status::OK();
     });
 ```
+
+于是，我们注册了一个名为 `ZeroOut` 的操作，它的输入是 32 比特
 
 This `ZeroOut` op takes one tensor `to_zero` of 32-bit integers as input, and
 outputs a tensor `zeroed` of 32-bit integers. The op also uses a shape function
