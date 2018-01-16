@@ -619,13 +619,10 @@ REGISTER_OP("AttrDefaultExampleForAllTypes")
 
 ##### 类型多态
 
-For ops that can take different types as input or produce different output
-types, you can specify [an attr](#attrs) in
-[an input or output type](#inputs-and-outputs) in the op registration.  Typically
-you would then register an `OpKernel` for each supported type.
+有些操作支持不同类型的输入或产生不同类型的输出，这时你可以在此操作的注册中为[一个输入或输出类型](#输入和输出)指定[一个属性](#属性)。
+典型情况下，你还要为支持的每种类型注册一个 `OpKernel`。
 
-For instance, if you'd like the `ZeroOut` op to work on `float`s
-in addition to `int32`s, your op registration might look like:
+比如，如果你想让 `ZeroOut` 操作既支持 `int32` 数值类型的张量，还要支持 `float` 类型，那么此操作的注册过程将类似于：
 <pre class="prettyprint"><code class="lang-cpp">
 REGISTER\_OP("ZeroOut")
     <b>.Attr("T: {float, int32}")</b>
@@ -633,35 +630,28 @@ REGISTER\_OP("ZeroOut")
     .Output("zeroed: <b>T</b>");
 </code></pre>
 
-Your op registration now specifies that the input's type must be `float`, or
-`int32`, and that its output will be the same type, since both have type `T`.
+现在，此操作在注册中指定了输入类型必须是 `float` 或 `int32`，而它的输出类型将保持一致，因为都是 `T` 类型。
 
-> <a id="naming"></a>A note on naming: Inputs, outputs, and attrs generally should be
-> given snake\_case names.  The one exception is attrs that are used as the type
-> of an input or in the type of an input. Those attrs can be inferred when the
-> op is added to the graph and so don't appear in the op's function.  For
-> example, this last definition of ZeroOut will generate a Python function that
-> looks like:
+> <a id="naming"></a> 关于命名的备注：输入、输出和属性一般都应该使用蛇形命名。
+> 不过有一个例外情况，那就是属性被用作输入类型、或用于输入类型时。这样的属性会在操作被加入到计算图中自动推断出来，
+> 即它们不会在操作的函数中出现。比如，ZeroOut 最终的定义将产生一个如下的 Python 函数：
 >
 > ```python
 > def zero_out(to_zero, name=None):
 >   """...
->   Args:
->     to_zero: A `Tensor`. Must be one of the following types:
->         `float32`, `int32`.
->     name: A name for the operation (optional).
+>   参数：
+>     to_zero: 表示一个 `Tensor`。必须两种类型之一： `float32`、 `int32`。
+>     name: 操作的名称（可选）
 >
->   Returns:
->     A `Tensor`. Has the same type as `to_zero`.
+>   返回值：
+>     一个 `Tensor`，与 `to_zero` 类型相同
 >   """
 > ```
 >
-> If `to_zero` is passed an `int32` tensor, then `T` is automatically set to
-> `int32` (well, actually `DT_INT32`). Those inferred attrs are given
-> Capitalized or CamelCase names.
+> 如果 `to_zero` 中传入一个 `int32` 张量，则 `T` 自动被设置为 `int32` （实际上是 `DT_INT32`）。
+> 这时推断出来的属性的命名方式为首字母大小或单词首字母大写。
 >
-> Compare this with an op that has a type attr that determines the output
-> type:
+> 与这种情况不同的是，有时候我们需要为用一个类型属性来为操作指定输出类型：
 >
 > ```c++
 > REGISTER_OP("StringToNumber")
@@ -669,58 +659,55 @@ Your op registration now specifies that the input's type must be `float`, or
 >     .Output("output: out_type")
 >     .Attr("out_type: {float, int32} = DT_FLOAT");
 >     .Doc(R"doc(
-> Converts each string in the input Tensor to the specified numeric type.
+> 将输入张量中的每个字符串转换为指定的数值类型。
 > )doc");
 > ```
 >
-> In this case, the user has to specify the output type, as in the generated
-> Python:
+> 这时，用户需要指定输出类型，这也反映到了生成的 Python 代码中，如下所示：
 >
 > ```python
 > def string_to_number(string_tensor, out_type=None, name=None):
->   """Converts each string in the input Tensor to the specified numeric type.
+>   """将输入张量中的每个字符串转换为指定的数值类型。
 >
->   Args:
->     string_tensor: A `Tensor` of type `string`.
->     out_type: An optional `tf.DType` from: `tf.float32, tf.int32`.
->       Defaults to `tf.float32`.
->     name: A name for the operation (optional).
+>   参数：
+>     string_tensor: `string` 类型的一个 `Tensor`
+>     out_type: 可选的 `tf.DType`，即 `tf.float32` 和 `tf.int32` 二者之一，默认为 `tf.float32`。
+>     name: 操作名称（可选）
 >
->   Returns:
->     A `Tensor` of type `out_type`.
+>   返回值：
+>     类型为 `out_type` 的一个 `Tensor`
 >   """
 > ```
 
 <pre class="prettyprint"><code class="lang-cpp">
 \#include "tensorflow/core/framework/op_kernel.h"<br/>
 class ZeroOut<b>Int32</b>Op : public OpKernel {
-  // as before
+  // 和前面一样
 };<br/>
 class ZeroOut<b>Float</b>Op : public OpKernel {
  public:
   explicit ZeroOut<b>Float</b>Op(OpKernelConstruction\* context)
       : OpKernel(context) {}<br/>
   void Compute(OpKernelContext\* context) override {
-    // Grab the input tensor
-    const Tensor& input\_tensor = context-&gt;input(0);
+    // 获得输入张量
+    const Tensor& input\_tensor = context-&gt;input(0);
     auto input = input\_tensor.flat&lt;<b>float</b>&gt;();<br/>
-    // Create an output tensor
+    // 产生输出张量
     Tensor* output = NULL;
     OP\_REQUIRES\_OK(context,
                    context-&gt;allocate\_output(0, input_tensor.shape(), &output));
     auto output\_flat = output-&gt;template flat&lt;<b>float</b>&gt;();<br/>
-    // Set all the elements of the output tensor to 0
+    // 将输出张量中的所有元素设置为 0
     const int N = input.size();
     for (int i = 0; i &lt; N; i++) {
       output\_flat(i) = 0;
     }<br/>
-    // Preserve the first input value
+    // 保留第一个输入值́
     if (N &gt; 0) output\_flat(0) = input(0);
   }
 };<br/><b>
-// Note that TypeConstraint&lt;int32&gt;("T") means that attr "T" (defined
-// in the op registration above) must be "int32" to use this template
-// instantiation.</b>
+// 注意：TypeConstraint&lt;int32&gt;("T") 表示属性 `T` （定义在操作注册代码中）必须是 `int32` 类型的，
+// 即将模板实例化了。</b>
 REGISTER\_KERNEL\_BUILDER(
     Name("ZeroOut")
     .Device(DEVICE\_CPU)
@@ -733,9 +720,7 @@ REGISTER\_KERNEL\_BUILDER(
     ZeroOutFloatOp);
 </b></code></pre>
 
-> To preserve [backwards compatibility](#backwards-compatibility), you should
-> specify a [default value](#default-values-constraints) when adding an attr to
-> an existing op:
+> 为了[后向兼容](#后向兼容)，在将属性加到已有操作中时，你需要指定一个[默认值](#默认值约束)：
 >
 > <pre class="prettyprint"><code class="lang-cpp">
 > REGISTER\_OP("ZeroOut")
@@ -744,7 +729,7 @@ REGISTER\_KERNEL\_BUILDER(
 >   .Output("zeroed: T")
 > </code></pre>
 
-Let's say you wanted to add more types, say `double`:
+如果你还想添加更多类型，比如说 `double` 类型，你要稍微修改一下注册代码：
 <pre class="prettyprint"><code class="lang-cpp">
 REGISTER\_OP("ZeroOut")
     <b>.Attr("T: {float, <b>double,</b> int32}")</b>
@@ -752,35 +737,33 @@ REGISTER\_OP("ZeroOut")
     .Output("zeroed: <b>T</b>");
 </code></pre>
 
-Instead of writing another `OpKernel` with redundant code as above, often you
-will be able to use a C++ template instead.  You will still have one kernel
-registration (`REGISTER_KERNEL_BUILDER` call) per overload.
+为了避免像上面的代码一样为多个 `OpKernel` 编写冗余代码，你可以使用 C++ 模板。
+不过，你仍然需要为每一次加载注册一个内核（调用 `REGISTER_KERNEL_BUILDER`）。
 <pre class="prettyprint"><code class="lang-cpp">
 <b>template &lt;typename T&gt;</b>
 class ZeroOutOp : public OpKernel {
  public:
   explicit ZeroOutOp(OpKernelConstruction\* context) : OpKernel(context) {}<br/>
   void Compute(OpKernelContext\* context) override {
-    // Grab the input tensor
-    const Tensor& input\_tensor = context-&gt;input(0);
+    // 获得输入张量
+    const Tensor& input\_tensor = context-&gt;input(0);
     auto input = input\_tensor.flat<b>&lt;T&gt;</b>();<br/>
-    // Create an output tensor
+    // 产生输出张量
     Tensor* output = NULL;
     OP\_REQUIRES\_OK(context,
                    context-&gt;allocate\_output(0, input_tensor.shape(), &output));
     auto output\_flat = output-&gt;template flat<b>&lt;T&gt;</b>();<br/>
-    // Set all the elements of the output tensor to 0
+    // 将输出张量中的所有元素设置为 0
     const int N = input.size();
     for (int i = 0; i &lt; N; i++) {
       output\_flat(i) = 0;
     }<br/>
-    // Preserve the first input value
+    // 保留第一个输入值́
     if (N &gt; 0) output\_flat(0) = input(0);
   }
 };<br/>
-// Note that TypeConstraint&lt;int32&gt;("T") means that attr "T" (defined
-// in the op registration above) must be "int32" to use this template
-// instantiation.</b>
+// 注意：TypeConstraint&lt;int32&gt;("T") 表示属性 `T` （定义在操作注册代码中）必须是 `int32` 类型的，
+// 即将模板实例化了。</b>
 REGISTER\_KERNEL\_BUILDER(
     Name("ZeroOut")
     .Device(DEVICE\_CPU)
@@ -798,8 +781,7 @@ REGISTER\_KERNEL\_BUILDER(
     ZeroOutOp&lt;double&gt;);
 </b></code></pre>
 
-If you have more than a couple overloads, you can put the registration in a
-macro.
+如果加载次数还不少，那你可以借助于一个宏来简化代码。
 
 ```c++
 #include "tensorflow/core/framework/op_kernel.h"
@@ -816,9 +798,7 @@ REGISTER_KERNEL(double);
 #undef REGISTER_KERNEL
 ```
 
-Depending on the list of types you are registering the kernel for, you may be
-able to use a macro provided by
-[`tensorflow/core/framework/register_types.h`][register_types]:
+根据你为内核注册的类型列表的不同，你还可以使用 [`tensorflow/core/framework/register_types.h`][register_types] 中提供的宏：
 
 ```c++
 #include "tensorflow/core/framework/op_kernel.h"
