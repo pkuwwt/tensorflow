@@ -10,7 +10,7 @@
 
 *   将你的操作表示成复合操作不太容易或不可能。
 *   已有基本操作的复合操作效率不高。
-*   你想手工融合一些基本操作的复合，因为未来的编译器做这种融合可能会比较困难。
+*   你想手工实现一些基本操作的复合，因为未来的编译器做这种融合可能会比较困难。
 
 比如，假设你希望实现类似于“最大值池化（MaxPool）”的“中值池化”操作，只不过不再是计算最大值，而是在滑动窗口上计算中值。
 这种操作是可能用已有操作复合得到的，比如使用 ExtractImagePatches 和 TopK，但是这可能在性能上、或内存开销上不如原生操作，
@@ -455,19 +455,17 @@ REGISTER\_OP("ZeroOut")
     .Output("zeroed: int32");
 </code></pre>
 
-(Note that the set of [attribute types](#attr_types) is different from the
-@{tf.DType$tensor types} used for inputs and outputs.)
+（注意，[属性类型](#attr_types)与输入输出的@{tf.DType$张量类型}是不一样的。）
 
-Your kernel can then access this attr in its constructor via the `context`
-parameter:
+你实现的内核可以在构造函数中通过 `context` 参数来访问属性：
 <pre class="prettyprint"><code class="lang-cpp">
 class ZeroOutOp : public OpKernel {
  public:
   explicit ZeroOutOp(OpKernelConstruction\* context) : OpKernel(context) {<b>
-    // Get the index of the value to preserve
+    // 获取待保存的下标值
     OP\_REQUIRES\_OK(context,
                    context-&gt;GetAttr("preserve\_index", &preserve\_index\_));
-    // Check that preserve\_index is positive
+    // 检查 preserve\_index 是否为正值
     OP\_REQUIRES(context, preserve\_index_ &gt;= 0,
                 errors::InvalidArgument("Need preserve\_index &gt;= 0, got ",
                                         preserve\_index_));
@@ -480,141 +478,127 @@ class ZeroOutOp : public OpKernel {
 };
 </code></pre>
 
-which can then be used in the `Compute` method:
+还可以在 `Compute` 方法中访问到这个参数：
 <pre class="prettyprint"><code class="lang-cpp">
   void Compute(OpKernelContext\* context) override {
     // ...
 <br/>
-    <b>// We're using saved attr to validate potentially dynamic input
-    // So we check that preserve\_index is in range
+    <b>// 我们用保存的属性来检查动态输入的合法性
+    // 所以，我们检查 preserve\_index 是否在允许的值域范围内
     OP\_REQUIRES(context, preserve\_index_ &lt; input.dimension(0),
                 errors::InvalidArgument("preserve\_index out of range"));<br/>
-    </b>// Set all the elements of the output tensor to 0
+    </b>// 将输出张量中所有元素设置为 0
     const int N = input.size();
     for (int i = 0; i < N; i++) {
       output\_flat(i) = 0;
     }<br/>
-    <b>// Preserve the requested input value
+    <b>// 保存指定位置的输入值
     output\_flat(preserve\_index\_) = input(preserve\_index\_);</b>
   }
 </code></pre>
 
-#### Attr types
+#### 属性类型
 
-The following types are supported in an attr:
+属性支持下列数据类型：
 
-* `string`: Any sequence of bytes (not required to be UTF8).
-* `int`: A signed integer.
-* `float`: A floating point number.
-* `bool`: True or false.
-* `type`: One of the (non-ref) values of [`DataType`][DataTypeString].
-* `shape`: A [`TensorShapeProto`][TensorShapeProto].
-* `tensor`: A [`TensorProto`][TensorProto].
-* `list(<type>)`: A list of `<type>`, where `<type>` is one of the above types.
-  Note that `list(list(<type>))` is invalid.
+* `string`：任意字节序列（不要求是 UTF8 编码）
+* `int`：有符号整数
+* `float`: 浮点数
+* `bool`: True 或 false
+* `type`： [`DataType`][DataTypeString] 的其中一个（非引用）值
+* `shape`：一个 [`TensorShapeProto`][TensorShapeProto]
+* `tensor`：一个 [`TensorProto`][TensorProto]
+* `list(<type>)`： `<type>` 的列表，其中 `<type>` 为其中一种上述类型
+  注意： `list(list(<type>))` 是非法的。
 
-See also: [`op_def_builder.cc:FinalizeAttr`][FinalizeAttr] for a definitive list.
+欲了解限定性列表，参见 [`op_def_builder.cc:FinalizeAttr`][FinalizeAttr]。
 
-##### Default values & constraints
+##### 默认值和约束
 
-Attrs may have default values, and some types of attrs can have constraints. To
-define an attr with constraints, you can use the following `<attr-type-expr>`s:
+属性可以有默认值，有一些属性则还可以有约束。为了定义一个有约束的属性，可以使用下列属性类型表达式（`<attr-type-expr>`）：
 
-* `{'<string1>', '<string2>'}`: The value must be a string that has either the
-  value `<string1>` or `<string2>`.  The name of the type, `string`, is implied
-  when you use this syntax.  This emulates an enum:
+* `{'<string1>', '<string2>'}`：表示在 `<string1>` 或 `<string2>` 这两种取值中二选一。
+当你使用这种语法时，系统自动推断出属性类型为 `string`。这相当于模仿构造了一个枚举：
 
   ```c++
   REGISTER_OP("EnumExample")
       .Attr("e: {'apple', 'orange'}");
   ```
 
-* `{<type1>, <type2>}`: The value is of type `type`, and must be one of
-  `<type1>` or `<type2>`, where `<type1>` and `<type2>` are supported
-  @{tf.DType$tensor types}.  You don't specify
-  that the type of the attr is `type`. This is implied when you have a list of
-  types in `{...}`.  For example, in this case the attr `t` is a type that must
-  be an `int32`, a `float`, or a `bool`:
+* `{<type1>, <type2>}`: 属性类型为 `type`，表示取值是 `<type1>` 类型或 `<type2>` 类型二者之一，
+  其中 `<type1>` 和 `<type2>` 为两种@{tf.DType$张量类型}。同样，你也不需要指定属性类型为 `type`，
+  因为这个信息是可以从 `{...}` 这个张量类型列表推断出来的。比如，下面的例子中属性 `t` 必须是 `int32`、
+  `float` 或 `bool` 中的一种类型：
 
   ```c++
   REGISTER_OP("RestrictedTypeExample")
       .Attr("t: {int32, float, bool}");
   ```
 
-* There are shortcuts for common type constraints:
-    * `numbertype`: Type `type` restricted to the numeric (non-string and
-      non-bool) types.
-    * `realnumbertype`: Like `numbertype` without complex types.
-    * `quantizedtype`: Like `numbertype` but just the quantized number types.
-
-    The specific lists of types allowed by these are defined by the functions
-    (like `NumberTypes()`) in
-    [`tensorflow/core/framework/types.h`](https://www.tensorflow.org/code/tensorflow/core/framework/types.h).
-    In this example the attr `t` must be one of the numeric types:
+* 常用的类型约束可以有如下别名：
+    * `numbertype`：`type` 类型被限制为数值类型（不是字符串，也不是布尔类型）
+    * `realnumbertype`：类似于 `numbertype` 类型，但不包括复数类型
+    * `quantizedtype`：类型与 `numbertype` 类型，但只包括量化数值类型
+    
+    属性所支持的类型列表可通过 [`tensorflow/core/framework/types.h`](https://www.tensorflow.org/code/tensorflow/core/framework/types.h) 中的一些函数来定义（比如 `NumberTypes()`）。
+    
+    在本例中，属性 `t` 必须是下面一种数值类型：
 
     ```c++
     REGISTER_OP("NumberType")
         .Attr("t: numbertype");
     ```
 
-    For this op:
+    对于这个操作：
 
     ```python
-    tf.number_type(t=tf.int32)  # Valid
-    tf.number_type(t=tf.bool)   # Invalid
-    ```
+    tf.number_type(t=tf.int32)  # 合法
+    tf.number_type(t=tf.bool)   # 不合法
+    ```
 
-    Lists can be combined with other lists and single types.  The following
-    op allows attr `t` to be any of the numberic types, or the bool type:
+    列表可以和其他列表及单个类型组合起来。下面的操作允许属性 `t` 为任意数值类型或布尔类型：
 
     ```c++
     REGISTER_OP("NumberOrBooleanType")
         .Attr("t: {numbertype, bool}");
     ```
 
-    For this op:
+    对于这个操作：
 
     ```python
-    tf.number_or_boolean_type(t=tf.int32)  # Valid
-    tf.number_or_boolean_type(t=tf.bool)   # Valid
-    tf.number_or_boolean_type(t=tf.string) # Invalid
-    ```
+    tf.number_or_boolean_type(t=tf.int32)  # 合法
+    tf.number_or_boolean_type(t=tf.bool)   # 合法
+    tf.number_or_boolean_type(t=tf.string) # 不合法
+    ```
 
-* `int >= <n>`: The value must be an int whose value is greater than or equal to
-  `<n>`, where `<n>` is a natural number.
+* `int >= <n>`：取值必须是整型，且要求大于等于 `<n>`，其中 `<n>` 是一个自然数。
 
-  For example, the following op registration specifies that the attr `a` must
-  have a value that is at least `2`:
+  比如，下列操作注册中，指定了属性 `a` 必须为一个至少为 `2` 的值：
 
   ```c++
   REGISTER_OP("MinIntExample")
       .Attr("a: int >= 2");
   ```
 
-* `list(<type>) >= <n>`: A list of type `<type>` whose length is greater than
-  or equal to `<n>`.
+* `list(<type>) >= <n>`: 取值为`<type>` 类型的一个列表，其长度大于等于 `<n>`。
 
-  For example, the following op registration specifies that the attr `a` is a
-  list of types (either `int32` or `float`), and that there must be at least 3
-  of them:
+  比如，下列操作注册指定属性 `a` 是一个类型列表（要么是 `int32`，要么是 `float`），且要求长度大于等于 `3`：
 
   ```c++
   REGISTER_OP("TypeListExample")
       .Attr("a: list({int32, float}) >= 3");
   ```
 
-To set a default value for an attr (making it optional in the generated code),
-add `= <default>` to the end, as in:
+为设置一个属性的默认值（让它在生成代码中成为可选项），可以在最后加上 `= <default>`，如下面代码所示：
 
 ```c++
 REGISTER_OP("AttrDefaultExample")
     .Attr("i: int = 0");
 ```
 
-The supported syntax of the default value is what would be used in the proto
-representation of the resulting GraphDef definition.
+这种默认值语法正是计算图的 GraphDef 定义的协议缓存表达中所用的语法。
 
-Here are examples for how to specify a default for all types:
+下面的示例展示如何为所有类型指定默认值：
 
 ```c++
 REGISTER_OP("AttrDefaultExampleForAllTypes")
@@ -629,12 +613,11 @@ REGISTER_OP("AttrDefaultExampleForAllTypes")
    .Attr("l_int: list(int) = [2, 3, 5, 7]");
 ```
 
-Note in particular that the values of type `type`
-use @{tf.DType$the `DT_*` names for the types}.
+注意：若值类型为 `type`，则使用 @{tf.DType$类型的 `DT_*` 名称}。
 
-#### Polymorphism
+#### 多态
 
-##### Type Polymorphism
+##### 类型多态
 
 For ops that can take different types as input or produce different output
 types, you can specify [an attr](#attrs) in
