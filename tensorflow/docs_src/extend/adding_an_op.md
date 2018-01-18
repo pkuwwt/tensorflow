@@ -822,15 +822,11 @@ TF_CALL_REAL_NUMBER_TYPES(REGISTER_KERNEL);
 #undef REGISTER_KERNEL
 ```
 
-##### List Inputs and Outputs
+##### 列表作为输入输出
 
-In addition to being able to accept or produce different types, ops can consume
-or produce a variable number of tensors.
+除了能够接受或产生不同类型，操作还消耗或产生数目不一的张量。
 
-In the next example, the attr `T` holds a *list* of types, and is used as the
-type of both the input `in` and the output `out`.  The input and output are
-lists of tensors of that type (and the number and types of tensors in the output
-are the same as the input, since both have type `T`).
+在下一个例子中，属性 `T` 指的是类型 `type` 的一个*列表*，它被用作输入 `in` 和输出 `out` 的类型。即输入和输出都某个类型的张量列表（而且输入输出列表的大小和类型都是完全一样的，因为它们由是类型 `T`）。
 
 ```c++
 REGISTER_OP("PolymorphicListExample")
@@ -839,10 +835,7 @@ REGISTER_OP("PolymorphicListExample")
     .Output("out: T");
 ```
 
-You can also place restrictions on what types can be specified in the list. In
-this next case, the input is a list of `float` and `double` tensors. The op
-accepts, for example, input types `(float, double, float)` and in that case the
-output type would also be `(float, double, float)`.
+你也可以对列表中元素的类型施加限制。在下一个例子中，输入是 `float` 或 `double` 类型张量的列表。比如，若输入类型是 `(float, double, float)`，而输出类型也必须是 `(float, double, float)`。
 
 ```c++
 REGISTER_OP("ListTypeRestrictionExample")
@@ -851,8 +844,7 @@ REGISTER_OP("ListTypeRestrictionExample")
     .Output("out: T");
 ```
 
-If you want all the tensors in a list to be of the same type, you might do
-something like:
+如果你要求列表中所有张量的类型都相同，则你可以这样：
 
 ```c++
 REGISTER_OP("IntListInputExample")
@@ -861,12 +853,9 @@ REGISTER_OP("IntListInputExample")
     .Output("out: int32");
 ```
 
-This accepts a list of `int32` tensors, and uses an `int` attr `N` to
-specify the length of the list.
+此例中，输入是 `int32` 类型的张量的列表，其中 `int` 属性 `N` 用来指定此列表的长度。
 
-This can be made [type polymorphic](#type-polymorphism) as well.  In the next
-example, the input is a list of tensors (with length `"N"`) of the same (but
-unspecified) type (`"T"`), and the output is a single tensor of matching type:
+我们也可以实现 [类型多态](#类型多态)。在下一个示例中，输入是长度为 `N` 的张量列表，这些张量的类型为 `T`（但还没指定），而输出则为指定类型的单个张量：
 
 ```c++
 REGISTER_OP("SameListInputExample")
@@ -876,10 +865,7 @@ REGISTER_OP("SameListInputExample")
     .Output("out: T");
 ```
 
-By default, tensor lists have a minimum length of 1. You can change that default
-using
-[a `">="` constraint on the corresponding attr](#default-values-constraints).
-In this next example, the input is a list of at least 2 `int32` tensors:
+默认情况下，张量列表的长度至少为 1。你可以用 [相应属性上的 `">="` 约束](#默认值约束) 来修改默认值。在下一个示例中，输入是长度至少为 2 的 `int32` 张量列表：
 
 ```c++
 REGISTER_OP("MinLengthIntListExample")
@@ -888,7 +874,7 @@ REGISTER_OP("MinLengthIntListExample")
     .Output("out: int32");
 ```
 
-The same syntax works with `"list(type)"` attrs:
+同样的语法也可以用到 `"list(type)"` 类型的属性上：
 
 ```c++
 REGISTER_OP("MinimumLengthPolymorphicListExample")
@@ -897,9 +883,9 @@ REGISTER_OP("MinimumLengthPolymorphicListExample")
     .Output("out: T");
 ```
 
-#### Inputs and Outputs
+#### 输入和输出
 
-To summarize the above, an op registration can have multiple inputs and outputs:
+下面对前面的示例做个总结，一个操作注册可以指定多个输入输出：
 
 ```c++
 REGISTER_OP("MultipleInsAndOuts")
@@ -909,21 +895,17 @@ REGISTER_OP("MultipleInsAndOuts")
     .Output("b: int32");
 ```
 
-Each input or output spec is of the form:
+每个输入或输出的规范的格式如下：
 
 ```
 <name>: <io-type-expr>
 ```
 
-where `<name>` begins with a letter and can be composed of alphanumeric
-characters and underscores. `<io-type-expr>` is one of the following type
-expressions:
+其中 `<name>` 的首字符必须是字母，后面的字符可以是字母、数字或下划线。`<io-type-expr>` 是下列表达式之一：
 
-* `<type>`, where `<type>` is a supported input type (e.g. `float`, `int32`,
-  `string`). This specifies a single tensor of the given type.
+* `<type>`：支持的输入类型，比如 `float`、`int32`、`string`。这个表达式指定了 `type` 类型的单个张量。
 
-  See
-  @{tf.DType$the list of supported Tensor types}.
+  参见 @{tf.DType$支持的张量类型列表}。
 
   ```c++
   REGISTER_OP("BuiltInTypesExample")
@@ -931,9 +913,7 @@ expressions:
       .Input("complex_numbers: complex64");
   ```
 
-* `<attr-type>`, where `<attr-type>` is the name of an [Attr](#attrs) with type
-  `type` or `list(type)` (with a possible type restriction). This syntax allows
-  for [polymorphic ops](#polymorphism).
+* `<attr-type>`：一个[属性](#属性)的名称，此属性的类型可以是 `type` 或 `list(type)`（可以有类型限制）。这个语法可以实现[多态操作](#多态)。 
 
   ```c++
   REGISTER_OP("PolymorphicSingleInput")
@@ -945,8 +925,7 @@ expressions:
       .Input("in: T");
   ```
 
-  Referencing an attr of type `list(type)` allows you to accept a sequence of
-  tensors.
+  引用类型为 `list(type)` 的属性可以让你接受一个张量序列。
 
   ```c++
   REGISTER_OP("ArbitraryTensorSequenceExample")
@@ -960,15 +939,9 @@ expressions:
       .Output("out: T");
   ```
 
-  Note that the number and types of tensors in the output `out` is the same as
-  in the input `in`, since both are of type `T`.
+  注意，输出 `out` 中的张量的类型和数目与输入 `in` 是一样的，因为它们都是 `T` 类型。
 
-* For a sequence of tensors with the same type: `<number> * <type>`, where
-  `<number>` is the name of an [Attr](#attrs) with type `int`.  The `<type>` can
-  either be
-  @{tf.DType$a specific type like `int32` or `float`},
-  or the name of an attr with type `type`.  As an example of the first, this
-  op accepts a list of `int32` tensors:
+* 相同类型的张量序列：`<number> * <type>`, 其中 `<number>` 为类型为 `int` 的一个[属性](#属性)。`<type>` 可以是 @{tf.DType$诸如 `int32` 或 `float` 这样的特定类型} 或 类型为 `type` 的一个属性的名称。第一种情况中，操作可接受 `int32` 张量的列表，示例如下：
 
   ```c++
   REGISTER_OP("Int32SequenceExample")
@@ -976,8 +949,7 @@ expressions:
       .Input("in: NumTensors * int32")
   ```
 
-  Whereas this op accepts a list of tensors of any type, as long as they are all
-  the same:
+  此操作接受任意类型的张量列表，只要它们的类型都一样：
 
   ```c++
   REGISTER_OP("SameTypeSequenceExample")
@@ -986,19 +958,13 @@ expressions:
       .Input("in: NumTensors * T")
   ```
 
-* For a reference to a tensor: `Ref(<type>)`, where `<type>` is one of the
-  previous types.
+* 对单个张量的引用：`Ref(<type>)`，其中 `<type>` 是上述类型中的一种。
 
-> A note on naming: Any attr used in the type of an input will be inferred.  By
-> convention those inferred attrs use capital names (like `T` or `N`).
-> Otherwise inputs, outputs, and attrs have names like function parameters
-> (e.g. `num_outputs`).  For more details, see the
-> [earlier note on naming](#naming).
+> 关于命名的备注：输入的类型中用到的任何属性都会被推断出来。按惯例，这些被推断的属性名要首字线大写（比如 `T` 或 `N`）。其它情况下，输入、输出和属性的名称和函数参数命名方式一致，比如 `num_outputs`。更多细节，参考 [前面关于命名的备注](#命名)。
 
-For more details, see
-[`tensorflow/core/framework/op_def_builder.h`][op_def_builder].
+更多细节，参考 [`tensorflow/core/framework/op_def_builder.h`][op_def_builder]。
 
-#### Backwards compatibility
+#### 后向兼容性
 
 Let's assume you have written a nice, custom op and shared it with others, so
 you have happy customers using your operation.  However, you'd like to make
@@ -1060,7 +1026,7 @@ new optional arguments to the end.  Generally incompatible changes may only be
 made when TensorFlow's changes major versions, and must conform to the
 @{$version_compat#compatibility_of_graphs_and_checkpoints$`GraphDef` version semantics}.
 
-### GPU Support
+### GPU 支持
 
 You can implement different OpKernels and register one for CPU and another for
 GPU, just like you can [register kernels for different types](#polymorphism).
@@ -1092,7 +1058,7 @@ kept on the CPU, add a `HostMemory()` call to the kernel registration, e.g.:
                           PadOp<GPUDevice, T>)
 ```
 
-#### Compiling the kernel for the GPU device
+#### 为 GPU 设备编译内核
 
 Look at
 [cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc)
@@ -1125,7 +1091,7 @@ For example, add `-L /usr/local/cuda-8.0/lib64/` if your CUDA is installed in
 
 >   Note in some linux settings, additional options to `nvcc` compiling step are needed. Add `-D_MWAITXINTRIN_H_INCLUDED` to the `nvcc` command line to avoid errors from `mwaitxintrin.h`.
 
-### Implement the gradient in Python
+### 在 Python 中实现梯度计算
 
 Given a graph of ops, TensorFlow uses automatic differentiation
 (backpropagation) to add new ops representing gradients with respect to the
@@ -1205,7 +1171,7 @@ Note that at the time the gradient function is called, only the data flow graph
 of ops is available, not the tensor data itself.  Thus, all computation must be
 performed using other tensorflow ops, to be run at graph execution time.
 
-### Shape functions in C++
+### C++ 中的形状函数
 
 The TensorFlow API has a feature called "shape inference" that provides
 information about the shapes of tensors without having to execute the
