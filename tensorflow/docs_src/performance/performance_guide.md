@@ -127,12 +127,8 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 
 #### 环境、构建和安装技巧
 
-*   `./configure` 命令是为了确定在构建中包含哪些计算能力。它不影响整体性能，但会影响初始启动。
-    运行 TensorFlow 一次之后，编译的内核会被缓存到 CUDA 中。如果使用 docker 容器，这个数据将
-    得不到缓存，因而每次 TensorFlow 启动时都会因此而变慢。最好的办法是将需要用到的 GPU 的[计算能力](http://developer.nvidia.com/cuda-gpus)
-    都包含进来，比如 P100 为 6.0，Titan X (Pascal) 为 6.1，Titan X (Maxwell) 为 5.2，K80 为 3.7。
-*   选择一个版本的 gcc ，要求能够支持目标 CPU 能提供的所有优化。推荐的最低的 gcc 版本为 4.8.3。
-    在 OS X 上，更新到最新的 Xcode 版本，并使用 Xcode 自带的那个版本的 clang。
+*   `./configure` 命令是为了确定在构建中包含哪些计算能力。它不影响整体性能，但会影响初始启动。运行 TensorFlow 一次之后，编译的内核会被缓存到 CUDA 中。如果使用 docker 容器，这个数据将得不到缓存，因而每次 TensorFlow 启动时都会因此而变慢。最好的办法是将需要用到的 GPU 的[计算能力](http://developer.nvidia.com/cuda-gpus)都包含进来，比如 P100 为 6.0，Titan X (Pascal) 为 6.1，Titan X (Maxwell) 为 5.2，K80 为 3.7。
+*   选择一个版本的 gcc ，要求能够支持目标 CPU 能提供的所有优化。推荐的最低的 gcc 版本为 4.8.3。在 OS X 上，更新到最新的 Xcode 版本，并使用 Xcode 自带的那个版本的 clang。
 *   安装 TensorFlow 能够支持的最新的稳定版 CUDA 平台和 cuDNN 库。
 
 ## GPU 上的优化
@@ -148,9 +144,7 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 两者的最优方案可能就不一样了。对于真实世界的例子，请参考 @{$performance/benchmarks$基准} 页面中关于多种平台上的最优设置的介绍。
 我们对几个平台和配置进行了基准测试，下面是摘要：
 
-*   **Tesla K80**： 如果多个 GPU 位于同一个 PCI Express 根联合体上，且相互之间能够使用 
-    [NVIDIA GPUDirect](https://developer.nvidia.com/gpudirect) 技术相
-    通信，则将变量均匀地分布在这些 GPU 上进行训练是最好的方法。如果不能使用 GPUDirect，则变量放在 CPU 上是最好的办法。
+*   **Tesla K80**： 如果多个 GPU 位于同一个 PCI Express 根联合体上，且相互之间能够使用 [NVIDIA GPUDirect](https://developer.nvidia.com/gpudirect) 技术相通信，则将变量均匀地分布在这些 GPU 上进行训练是最好的方法。如果不能使用 GPUDirect，则变量放在 CPU 上是最好的办法。
 
 *   **Titan X (Maxwell 和 Pascal)、 M40、P100、及类似型号**： 对于像 ResNet 和 InceptionV3 这样的模型，将变量
     放在 CPU 上是最优选择，但是对于变量很多的模型，比如 AlexNet 和 VGG，结合 `NCCL` 使用 GPU 会更好一些。
@@ -164,10 +158,8 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 或 `VarHandleOp`，则此方法判断它们应该被放在 CPU 上，而其它所有操作被判定应该放在 GPU 上。
 所以，计算图的构建过程应该是：
 
-*    在第一个循环中，为 `gpu:0` 创建一个模型的塔。在放置操作的过程中，我们的放置方法确定
-     变量应放在 `cpu:0` 上，而所有其它操作应该放在 `gpu:0` 上。
-*    在第二个循环中，`reuse` 设为 `True`，表示变量要被重用，然后为 `gpu:1` 生成一个“塔”。
-     在放置这个塔上的操作时，那些已经被放在 `cpu:0` 上的变量会被重用，而所有其它的操作则被放在 `gpu:1` 上。
+*    在第一个循环中，为 `gpu:0` 创建一个模型的塔。在放置操作的过程中，我们的放置方法确定变量应放在 `cpu:0` 上，而所有其它操作应该放在 `gpu:0` 上。
+*    在第二个循环中，`reuse` 设为 `True`，表示变量要被重用，然后为 `gpu:1` 生成一个“塔”。在放置这个塔上的操作时，那些已经被放在 `cpu:0` 上的变量会被重用，而所有其它的操作则被放在 `gpu:1` 上。
 
 最后的结果是，所有的变量都被放在 CPU 上，而每个 GPU 上都有拷贝有一份模型中所有的计算操作。
 
@@ -350,8 +342,7 @@ if FLAGS.num_intra_threads > 0:
 
 不同的设置会让一些模型和硬件平台受益。下面，讨论了影响性能的每一个变量。
 
-*   **KMP_BLOCKTIME**： MKL 中默认为 200ms，但这在我们的测试中并不是最优的。
-    在我们的测试中，0 (0ms) 对于基于 CNN 的模型是一个不错的默认值。对于 AlexNet 模型，最优值为 30ms，而 GoogleNet 和 VGG11 都为 1ms。
+*   **KMP_BLOCKTIME**： MKL 中默认为 200ms，但这在我们的测试中并不是最优的。在我们的测试中，0 (0ms) 对于基于 CNN 的模型是一个不错的默认值。对于 AlexNet 模型，最优值为 30ms，而 GoogleNet 和 VGG11 都为 1ms。
 
 *   **KMP_AFFINITY**：建议设置为 `granularity=fine,verbose,compact,1,0` 。
 
@@ -363,12 +354,9 @@ if FLAGS.num_intra_threads > 0:
 
 ### 编译器优化的对比
 
-下面的内容中整理了在不同平台、不同类型 CPU、以及不同编译器优化的情况下的训练和推理时的性能测试结果。 
-我们测试的模型包括 ResNet-50 ([arXiv:1512.03385](https://arxiv.org/abs/1512.03385)) 和
-InceptionV3 ([arXiv:1512.00567](https://arxiv.org/abs/1512.00567))。
+下面的内容中整理了在不同平台、不同类型 CPU、以及不同编译器优化的情况下的训练和推理时的性能测试结果。我们测试的模型包括 ResNet-50 ([arXiv:1512.03385](https://arxiv.org/abs/1512.03385)) 和 InceptionV3 ([arXiv:1512.00567](https://arxiv.org/abs/1512.00567))。
 
-对于每个测试，当用到 MKL 优化时，环境变量 KMP_BLOCKTIME 都被设置为 0 (0ms)，而 KMP_AFFINITY 被
-设置为 `granularity=fine,verbose,compact,1,0`。
+对于每个测试，当用到 MKL 优化时，环境变量 KMP_BLOCKTIME 都被设置为 0 (0ms)，而 KMP_AFFINITY 被设置为 `granularity=fine,verbose,compact,1,0`。
 
 #### InceptionV3 的推理
 
@@ -444,7 +432,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 | AVX          | NHWC        | 6.4 (157ms)  | 4             | 0             |
 | SSE3         | NHWC        | 3.7 (270ms)  | 4             | 0             |
 
-**Batch Size: 32**
+**每批次样本数目：32**
 
 MKL 测试所执行的命令：
 
