@@ -2,11 +2,11 @@
 
 本指南包含了一些优化 TensorFlow 代码的最佳实践，它包含以下几节内容：
 
-*   [一般性最佳实践](#一般性最佳实践) 涵盖多种模型类型和硬件的通用主题。
+*   [通用最佳实践](#通用最佳实践) 涵盖多种模型类型和硬件的通用主题。
 *   [GPU 上的优化](#GPU-上的优化) 针对 GPU 的相关技巧的细节。
 *   [CPU 上的优化](#CPU-上的优化) 针对 CPU 的细节。
 
-## 一般性最佳实践
+## 通用最佳实践
 
 下面的几节内容为涵盖多种硬件和模型的最佳实践，它们是：
 
@@ -17,17 +17,17 @@
 
 ### 输入管线的优化
 
-典型的模型会从磁盘加载数据，然后处理并发送到网络中。比如，模型按照下列数据流过程来处理 JPEG 图像：
-从磁盘加载图像，将 JPEG 解码加载到一个张量中，裁剪和边缘垫值，以及可能的翻转的变形，然后按批次投入训练。
+典型的模型会从磁盘加载数据，然后处理并通过网络发送出去。比如，模型按照下列数据流过程来处理 JPEG 图像：
+从磁盘加载图像，将 JPEG 解码加载到一个张量中，裁剪和边缘垫值，以及可能的翻转和变形操作，然后按批次投入训练。
 这个数据流被称为输入管线。随着 GPU 和其它加速硬件运行得越来越快，数据预处理就成了性能的瓶颈。
 
 确定输入管线是否为瓶颈可能会比较复杂。一种最直接的方法是让输入管线后的那个模型只包含单个操作（得到一个平凡模型），然后测量其每秒处理的样例数。
 如果整个模型和平凡模型之间的效率差异极小，则输入管线很有可能是一个瓶颈。下面是发现瓶颈问题的其它一些方法：
 
-*   通过运行 `nvidia-smi -l 2` 来检查一个 GPU 是否已经在使用。如果 GPU 利用率没有接近 80-100%，则此输入管线可能是个瓶颈。
+*   通过运行 `nvidia-smi -l 2` 来检查一个 GPU 是否已经被充分利用。如果 GPU 利用率没有接近 80-100%，则此输入管线可能是个瓶颈。
 *   生成一个时间线，并检查它是否有大块的空白时间段（等待时间）。生成时间线的示例参见教程 @{$jit$XLA JIT}。
 *   检查 CPU 使用情况。有可能出现的情况是：管线已经优化，却仍然没有足够的 CPU 时钟来处理这个管线。
-*   估计所需的吞吐量，确认磁盘可以应付这样规模的吞吐量。一些云服务网络提供的磁盘速度甚至低到 50 MB/秒，这比机械磁盘（150 MB/秒）、SATA SSD （500 MB/秒）、以及 PCIe SSD （2000+ MB/秒）都要慢。
+*   估计所需的吞吐量，确认磁盘可以应付这样规模的吞吐量。因为一些云服务网络提供的磁盘速度甚至低到 50 MB/秒，这比机械磁盘（150 MB/秒）、SATA SSD （500 MB/秒）、以及 PCIe SSD （2000+ MB/秒）都要慢。
 
 
 #### CPU 上的预处理
@@ -47,7 +47,7 @@ with tf.device('/cpu:0'):
 在构建输入管线时，我们推荐使用 @{$datasets$Dataset API}，而不是原来的 `queue_runner`。
 这个 API 出现在 TensorFlow 1.2 的 contrib 模块中，未来会被加到核心代码中。
 [ResNet 示例](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/cifar10_main.py)
-（来自于论文 [arXiv:1512.03385](https://arxiv.org/abs/1512.03385)）中训练 CIFAR-10 展示了如何结合 `tf.estimator.Estimator` 来使用 Dataset API。Dataset API利用了 C++ 多线程，且比基于 Python 的 `queue_runner` 具有更小的开销，后者受 Python 的多线程性能所累。
+（来自于论文 [arXiv:1512.03385](https://arxiv.org/abs/1512.03385)）中训练 CIFAR-10 展示了如何结合 `tf.estimator.Estimator` 来使用 Dataset API。Dataset API 利用了 C++ 多线程，且比基于 Python 的 `queue_runner` 具有更小的开销，后者受 Python 的多线程性能所累。
 
 虽然用一个 `feed_dict` 字典来输入数据非常灵活，但在大部分例子中，使用 `feed_dict` 并不能很好地扩展。
 不过，如果只用到了一个 GPU，这并没有什么影响。即便如此，我们也强烈推荐使用 Dataset API。下面的用法应尽量避免： 
@@ -59,8 +59,8 @@ sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
 
 #### 使用大文件
 加载大量的小文件会极大地影响 I/O 性能。一种获得最大的 I/O 吞吐量的方法是将输入数据预处理为更大的 `TFRecord` 文件（约 100MB 大小）。
-对于较小的数据集（200MB~1GB），最好的方法通常是将整个数据集加载到内存。资料[下载和转换为 TFRecord 格式](https://github.com/tensorflow/models/tree/master/research/slim#Data) 中介绍了创建 `TFRecords` 的相关信息和脚本，
-而[脚本](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/generate_cifar10_tfrecords.py) 
+对于较小的数据集（200MB~1GB），最好的方法通常是将整个数据集加载到内存。资料 [下载和转换为 TFRecord 格式](https://github.com/tensorflow/models/tree/master/research/slim#Data) 中介绍了创建 `TFRecords` 的相关信息和脚本，
+而 [脚本](https://github.com/tensorflow/models/tree/master/tutorials/image/cifar10_estimator/generate_cifar10_tfrecords.py)
 可用于将 CIFAR-10 数据集转化为 `TFRecords`。
 
 ### 数据格式
@@ -79,10 +79,10 @@ sess.run(train_step, feed_dict={x: batch_xs, y_: batch_ys})
 *   `NHWC` 或 `channels_last`
 
 
-TensorFlow默认采用 `NHWC`，而在 NVIDIA GPU 上使用 [cuDNN](https://developer.nvidia.com/cudnn) 时，`NCHW` 格式是最优选择。
+TensorFlow 默认采用 `NHWC`，而在 NVIDIA GPU 上使用 [cuDNN](https://developer.nvidia.com/cudnn) 时，`NCHW` 格式是最优选择。
 
 实践中最好的方式是让你的模型同时支持这两种数据格式。这可以让你在 GPU 上训练完了之后直接将模型用于 CPU 上的推理。
-如果 TensorFlow 编译时用了 [Intel MKL](#tensorflow_with_intel_mkl-dnn) 优化，很多操作会被优化并支持 `NCHW`，特别是基于 CNN 的模型相关的操作。如果你没有使用 MKL，有些操作在使用 `NCHW` 时无法在 CPU 上运行。
+如果 TensorFlow 编译时用了 [Intel MKL](#tensorflow_with_intel_mkl-dnn) 优化，那么很多操作会被优化并支持 `NCHW`，特别是基于 CNN 的模型相关的操作。如果你没有使用 MKL，有些操作在使用 `NCHW` 时无法在 CPU 上运行。
 
 这里我们简要介绍一下这两种格式的历史。TensorFlow 最开始使用 `NHWC` 是因为它在 CPU 上稍微快一点。
 但长期以来，我们一直在编写工具，让计算图可以自动重写，从而让两种格式的切换变得透明化，来实现一些优化。
@@ -97,7 +97,7 @@ TensorFlow默认采用 `NHWC`，而在 NVIDIA GPU 上使用 [cuDNN](https://deve
 
 融合批量标准化（Fused batch norm）是将批量标准化所需的多个操作合并为一个内核。批量标准化是一个开销很大的过程，对于一些模型而言，它会占用很大比例的操作时间。通过使用融合批量标准化，可以实现 12%-30% 的加速。
 
-常用的批量标准化有两种，都支持融合。TensorFlow 1.3 版本中开始支持对核心函数 @{tf.layers.batch_normalization} 添加融合支持。
+常用的批量标准化有两种，都支持融合。TensorFlow 1.3 版本中开始支持对核心函数 @{tf.layers.batch_normalization} 添加融合参数。
 
 ```python
 bn = tf.layers.batch_normalization(
@@ -114,8 +114,7 @@ bn = tf.contrib.layers.batch_norm(input_layer, fused=True, data_format='NCHW')
 
 
 默认情况下，TensorFlow 二进制程序已经覆盖了非常广泛的硬件种类，从而让每个人都能使用 TensorFlow。
-如果用 CPU 来做训练或推理，建议编译 TensorFlow 时启用所有针对 CPU 的优化。对 CPU 上训练和推理的加速的文档
-参见[编译器优化的对比](#编译器优化的对比)。
+如果用 CPU 来做训练或推理，建议编译 TensorFlow 时启用所有针对 CPU 的优化。对 CPU 上训练和推理的加速的文档参见[编译器优化的对比](#编译器优化的对比)。
 
 为安装 TensorFlow 的优化得最充分的版本，你需要从源码 @{$install_sources$构建和安装}。
 如果需要在目标机器上构建支持不同硬件平台的 TensorFlow，你需要在交叉编译时针对目标平台启用最高级别的优化。
@@ -131,22 +130,22 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 *   `./configure` 命令是为了确定在构建中包含哪些计算能力。它不影响整体性能，但会影响初始启动。
     运行 TensorFlow 一次之后，编译的内核会被缓存到 CUDA 中。如果使用 docker 容器，这个数据将
     得不到缓存，因而每次 TensorFlow 启动时都会因此而变慢。最好的办法是将需要用到的 GPU 的[计算能力](http://developer.nvidia.com/cuda-gpus)
-    包含进来，比如 P100 为 6.0，Titan X (Pascal) 为 6.1，Titan X (Maxwell) 为 5.2，K80 为 3.7。
+    都包含进来，比如 P100 为 6.0，Titan X (Pascal) 为 6.1，Titan X (Maxwell) 为 5.2，K80 为 3.7。
 *   选择一个版本的 gcc ，要求能够支持目标 CPU 能提供的所有优化。推荐的最低的 gcc 版本为 4.8.3。
     在 OS X 上，更新到最新的 Xcode 版本，并使用 Xcode 自带的那个版本的 clang。
 *   安装 TensorFlow 能够支持的最新的稳定版 CUDA 平台和 cuDNN 库。
 
 ## GPU 上的优化
 
-本节介绍针对 GPU 的优化技巧，这和[一般最佳实践](#一般最佳实践)中的内容不同。如何在多 GPU 环境下获得
-最优的性能是一个有挑战性的任务。常用的方法是利用数据并行机制。基于数据并行的扩展需要将模型复制数份，它们被称之为“塔”，
+本节介绍针对 GPU 的优化技巧，这和 [通用最佳实践](#通用最佳实践) 中的内容不同。如何在多 GPU 环境下获得
+最优的性能是一个有挑战性的任务。常用的方法是利用数据并行机制。基于数据并行的扩展需要将模型复制数份，它们被称之为“塔（tower）”，
 然后将每个“塔”置于一个 GPU 上。每个塔会对一个不同批次的数据进行操作，然后更新变量。这些变量即我们所说的参数，是需要由
 所有塔来共享的。那么每个塔是如何获得变量更新的？梯度计算又是如何影响模型的性能、扩展、以及收敛性的呢？
 本节后面的部分将概述模型的塔在多个 GPU 上是如何处理那些变量的。@{$performance_models$高性能模型} 中则会更详细介绍一些更复杂的方法，用于在不同塔之间共享和更新变量。
 
 如何最好地处理变量的更新与模型、硬件、以及硬件的配置方法等因素有关。比如，两个系统都用 NVIDIA Tesla P100s，
 但是一个使用的是 PCIe 而另一个却是 [NVLink](http://www.nvidia.com/object/nvlink.html)。在这种情况下，
-两者的最优方案就不可能不一样了。对于真实世界的例子，请参考 @{$performance/benchmarks$基准} 页面中关于多种平台上的最优设置的介绍。
+两者的最优方案可能就不一样了。对于真实世界的例子，请参考 @{$performance/benchmarks$基准} 页面中关于多种平台上的最优设置的介绍。
 我们对几个平台和配置进行了基准测试，下面是摘要：
 
 *   **Tesla K80**： 如果多个 GPU 位于同一个 PCI Express 根联合体上，且相互之间能够使用 
@@ -255,13 +254,12 @@ def _resnet_model_fn():
 
 下面两种配置是通过调整线程池来优化 CPU 性能：
 
-*   `intra_op_parallelism_threads`： 使用多线程来并行化的结点会将不同的计算单元分配到池中线程上
+*   `intra_op_parallelism_threads`： 使用多线程来并行化计算的结点会将不同的计算单元分配到该池中的线程上
 *   `inter_op_parallelism_threads`： 所有待计算结点都由此线程池来调度
 
 这些配置是通过 `tf.ConfigProto` 来设置的，如下面代码所示，将其作为 `config` 参数传递到 `tf.Session` 即可。
 对于这两种配置，如果都没有设置或设置为 0，则会默认使用逻辑 CPU 核心的数目。对于许多系统，包括 4 核的 CPU，以及包含
-70 多个逻辑核心的多 CPU 系统，测试都显示默认设置已经非常高效。另一种常用策略是将线程池的大小设置为物理核的数目，而
-非逻辑核的数目。
+70 多个逻辑核心的多 CPU 系统，测试都显示默认设置已经非常高效。另一种常用策略是将线程池的大小设置为物理核的数目，而非逻辑核的数目。
 
 ```python
 
@@ -272,7 +270,7 @@ def _resnet_model_fn():
 
 ```
 
-在[编译器优化对比](#comparing-compiler-optimizations) 中，介绍了不同编译器优化的测试结果。
+在 [编译器优化对比](#comparing-compiler-optimizations) 中，介绍了不同编译器优化的测试结果。
 
 ### 在 TensorFlow 中使用 Intel® MKL DNN
 
@@ -282,7 +280,7 @@ def _resnet_model_fn():
 
 > 注意：TensorFlow 从 1.2 版本开始加入了对 MKL 的支持，但是目前只支持 Linux 平台。
 for the consumer line of processors, e.g. i5 and i7 Intel processors. The Intel
-> 而且，如果使用了 `--config=cuda`，也是无法使用 MKL 的。
+> 而且，即使使用了 `--config=cuda`，也是无法使用 MKL 的。
 
 除了显著地改善了基于 CNN 的模型的训练效率，用 MKL 编译的代码针对 AVX 和 AVX2 也进行了优化。
 因而，对于大部分现代处理器而言（2011年之后），一次编译就可同时满足优化和兼容性需求。
@@ -352,12 +350,12 @@ if FLAGS.num_intra_threads > 0:
 
 不同的设置会让一些模型和硬件平台受益。下面，讨论了影响性能的每一个变量。
 
-*   **KMP_BLOCKTIME**： MKL 中该变量默认为 200ms，但这在我们的测试中并不是最优的。
+*   **KMP_BLOCKTIME**： MKL 中默认为 200ms，但这在我们的测试中并不是最优的。
     在我们的测试中，0 (0ms) 对于基于 CNN 的模型是一个不错的默认值。对于 AlexNet 模型，最优值为 30ms，而 GoogleNet 和 VGG11 都为 1ms。
 
 *   **KMP_AFFINITY**：建议设置为 `granularity=fine,verbose,compact,1,0` 。
 
-*   **OMP_NUM_THREADS**: 默认值为物理核心数目。调整此参数时，如果其值超过核心数目，则会对某些模型在 Intel® Xeon Phi™ (Knights Landing) 芯片上的性能产生影响。关于 Intel 优化的详情，参见[现代 Intel® 架构上的 TensorFlow* 优化](https://software.intel.com/en-us/articles/tensorflow-optimizations-on-modern-intel-architecture)一文。 
+*   **OMP_NUM_THREADS**: 默认值为物理核心数目。调整此参数时，如果其值超过核心数目，则会对某些模型在 Intel® Xeon Phi™ (Knights Landing) 芯片上的性能产生影响。关于 Intel 优化的详情，参见 [现代 Intel® 架构上的 TensorFlow* 优化](https://software.intel.com/en-us/articles/tensorflow-optimizations-on-modern-intel-architecture)一文。 
 
 *   **intra_op_parallelism_threads**： 推荐设置为物理核心数目。默认为 0，意为逻辑核心数目，这对于某些架构而言，是一个可行选项。这个变量的值应该和 `OMP_NUM_THREADS` 保持一致。
 
@@ -422,7 +420,7 @@ python tf_cnn_benchmarks.py --forward_only=True --device=cpu --mkl=True \
 
 **环境**
 
-*   I实例类型： AWS EC2 m4.xlarge
+*   实例类型： AWS EC2 m4.xlarge
 *   CPU: Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz (Broadwell)
 *   数据集: ImageNet
 *   TensorFlow 版本： 1.2.0 RC2
