@@ -966,65 +966,39 @@ REGISTER_OP("MultipleInsAndOuts")
 
 #### 后向兼容性
 
-Let's assume you have written a nice, custom op and shared it with others, so
-you have happy customers using your operation.  However, you'd like to make
-changes to the op in some way.
+假设你定制一个很好的操作，并分享给他人，让你的客户开心地使用了。然而，你还想要进一步修改这个操作。
 
-In general, changes to existing, checked-in specifications must be
-backwards-compatible: changing the specification of an op must not break prior
-serialized `GraphDef` protocol buffers constructed from older specifications.
-The details of `GraphDef` compatibility are
-@{$version_compat#compatibility_of_graphs_and_checkpoints$described here}.
+一般情况下，对已有的已上线的规范进行修改需要考虑后向兼容性：对一个操作的规范进行修改必须保证由旧规范构造出来的序列化 `GraphDef` 协议缓存仍然能用。`GraphDef` 的兼容性的细节参考 @{$version_compat#compatibility_of_graphs_and_checkpoints$文档}。
 
-There are several ways to preserve backwards-compatibility.
+保持后向兼容性的方法有很多，下面列出了一些：
 
-1. Any new attrs added to an operation must have default values defined, and
-   with that default value the op must have the original behavior. To change an
-   operation from not polymorphic to polymorphic, you *must* give a default
-   value to the new type attr to preserve the original signature by default. For
-   example, if your operation was:
+1. 添加到一个操作的任何新属性必须定义默认值，而在默认值下，此操作的行为必须与原来相同。让一个操作由非多态变得多态时，你*必须*为新属性指定默认值，让它在默认情况下保持原来的行为。比如，如果你的操作为：
 
        REGISTER_OP("MyGeneralUnaryOp")
            .Input("in: float")
            .Output("out: float");
 
-   you can make it polymorphic in a backwards-compatible way using:
+   你可以在保持后向兼容的情况下让它变得多态：
 
        REGISTER_OP("MyGeneralUnaryOp")
            .Input("in: T")
            .Output("out: T")
            .Attr("T: numerictype = DT_FLOAT");
 
-2. You can safely make a constraint on an attr less restrictive.  For example,
-   you can change from `{int32, int64}` to `{int32, int64, float}` or `type`.
-   Or you may change from `{"apple", "orange"}` to `{"apple", "banana",
-   "orange"}` or `string`.
+2. 对于一个属性，你总是可以安全地施加更严格的约束。比如，你可以将 `{int32, int64, float}` 或 `type` 变成  `{int32, int64}` 。你也可以将`{"apple", "banana", "orange"}` 或 `string` 变成 `{"apple", "orange"}`。
 
-3. You can change single inputs / outputs into list inputs / outputs, as long as
-   the default for the list type matches the old signature.
+3. 你可以将单个输入/输出变成列表形式的输入/输出，前提是列表类型的默认值与原来的接口一致。
 
-4. You can add a new list input / output, if it defaults to empty.
+4. 你可以添加一个新的列表形式的输入/输出，只要它的默认值为空。
 
-5. Namespace any new ops you create, by prefixing the op names with something
-   unique to your project. This avoids having your op colliding with any ops
-   that might be included in future versions of TensorFlow.
+5. 将你创建新创建的任何操作放在命名空间中，即在操作前面加上前缀以区别于工程中的其它操作。这可以让你的操作避免与 TensorFlow 未来版本中新引入的操作相冲突。
 
-6. Plan ahead! Try to anticipate future uses for the op. Some signature changes
-   can't be done in a compatible way (for example, making a list of the same
-   type into a list of varying types).
+6. 提前计划好！尝试构想此操作的未来用途。有些接口修改无法以兼容方式修改（比如，将相同类型列表变成变化类型列表）。
 
-The full list of safe and unsafe changes can be found in
-[`tensorflow/core/framework/op_compatibility_test.cc`](https://www.tensorflow.org/code/tensorflow/core/framework/op_compatibility_test.cc).
-If you cannot make your change to an operation backwards compatible, then create
-a new operation with a new name with the new semantics.
+安全和不安全修改的完整列表可以在源码 [`tensorflow/core/framework/op_compatibility_test.cc`](https://www.tensorflow.org/code/tensorflow/core/framework/op_compatibility_test.cc) 中找到。如果你无法在兼容要求下修改此操作，那么最好是另起炉灶，创建一个新的操作，取一个新的名字，来表示你的新的语义。
 
-Also note that while these changes can maintain `GraphDef` compatibility, the
-generated Python code may change in a way that isn't compatible with old
-callers.  The Python API may be kept compatible by careful changes in a
-hand-written Python wrapper, by keeping the old signature except possibly adding
-new optional arguments to the end.  Generally incompatible changes may only be
-made when TensorFlow's changes major versions, and must conform to the
-@{$version_compat#compatibility_of_graphs_and_checkpoints$`GraphDef` version semantics}.
+还要注意的是，除了维持 `GraphDef` 的兼容性，生成的 Python 代码还是有可能变得与旧的调用它的代码不兼容。因而，为保持兼容性，Python API 的修改要非常小心，最好是手写 Python 包装代码，而且只在旧的接口函数的最后面加上新的可选参数。一般而言，不兼容的改变只会发生在 TensorFlow 的大的版本变动时，而且必须遵从 @{$version_compat#compatibility_of_graphs_and_checkpoints$`GraphDef` 版本语义}。
+
 
 ### GPU 支持
 
