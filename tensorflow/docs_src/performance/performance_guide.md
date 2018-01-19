@@ -116,7 +116,7 @@ bn = tf.contrib.layers.batch_norm(input_layer, fused=True, data_format='NCHW')
 默认情况下，TensorFlow 二进制程序已经覆盖了非常广泛的硬件种类，从而让每个人都能使用 TensorFlow。
 如果用 CPU 来做训练或推理，建议编译 TensorFlow 时启用所有针对 CPU 的优化。对 CPU 上训练和推理的加速的文档参见[编译器优化的对比](#编译器优化的对比)。
 
-为安装 TensorFlow 的优化得最充分的版本，你需要从源码 @{$install_sources$构建和安装}。
+为安装 TensorFlow 的优化得最充分的版本，你需要从源码 @{$install_sources$build and install}。
 如果需要在目标机器上构建支持不同硬件平台的 TensorFlow，你需要在交叉编译时针对目标平台启用最高级别的优化。
 下面的命令展示了使用 `bazel` 针对特定平台进行编译的示例。
 
@@ -137,11 +137,11 @@ bazel build -c opt --copt=-march="broadwell" --config=cuda //tensorflow/tools/pi
 最优的性能是一个有挑战性的任务。常用的方法是利用数据并行机制。基于数据并行的扩展需要将模型复制数份，它们被称之为“塔（tower）”，
 然后将每个“塔”置于一个 GPU 上。每个塔会对一个不同批次的数据进行操作，然后更新变量。这些变量即我们所说的参数，是需要由
 所有塔来共享的。那么每个塔是如何获得变量更新的？梯度计算又是如何影响模型的性能、扩展、以及收敛性的呢？
-本节后面的部分将概述模型的塔在多个 GPU 上是如何处理那些变量的。@{$performance_models$高性能模型} 中则会更详细介绍一些更复杂的方法，用于在不同塔之间共享和更新变量。
+本节后面的部分将概述模型的塔在多个 GPU 上是如何处理那些变量的。@{$performance_models$High-Performance Models} 中则会更详细介绍一些更复杂的方法，用于在不同塔之间共享和更新变量。
 
 如何最好地处理变量的更新与模型、硬件、以及硬件的配置方法等因素有关。比如，两个系统都用 NVIDIA Tesla P100s，
 但是一个使用的是 PCIe 而另一个却是 [NVLink](http://www.nvidia.com/object/nvlink.html)。在这种情况下，
-两者的最优方案可能就不一样了。对于真实世界的例子，请参考 @{$performance/benchmarks$基准} 页面中关于多种平台上的最优设置的介绍。
+两者的最优方案可能就不一样了。对于真实世界的例子，请参考 @{$performance/benchmarks$benchmark} 页面中关于多种平台上的最优设置的介绍。
 我们对几个平台和配置进行了基准测试，下面是摘要：
 
 *   **Tesla K80**： 如果多个 GPU 位于同一个 PCI Express 根联合体上，且相互之间能够使用 [NVIDIA GPUDirect](https://developer.nvidia.com/gpudirect) 技术相通信，则将变量均匀地分布在这些 GPU 上进行训练是最好的方法。如果不能使用 GPUDirect，则变量放在 CPU 上是最好的办法。
@@ -238,7 +238,7 @@ def _resnet_model_fn():
 
 ## CPU 上的优化
 
-只要 @{$install_sources$从源码构建} TensorFlow，并启用目标 CPU 所支持的那些优化指令，包括 Intel® Xeon Phi™ 在内的 CPU 是可以实现最优性能的，
+只要 @{$install_sources$built from source} TensorFlow，并启用目标 CPU 所支持的那些优化指令，包括 Intel® Xeon Phi™ 在内的 CPU 是可以实现最优性能的，
 
 除了使用了最新的指令集，Intel® 还在 Intel® 深度神经网络数学核心库（Math Kernel Library，Intel® MKL-DNN）
 中加入了对 TensorFlow 的支持。虽然用词不完全准确，这些优化还是常被简称为 “MKL”，或“基于 MKL 的 TensorFlow”。
