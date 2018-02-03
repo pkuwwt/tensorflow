@@ -1001,27 +1001,12 @@ REGISTER_OP("MultipleInsAndOuts")
 
 
 ### GPU 支持
+我们可实现不同的内核操作(OpKernel)，然后一个注册到 CPU 上，一个注册到 GPU 上,就像你可以[为不同的类型注册内核](#多态)一样。TensorFlow提供了多个支持 GPU 的内核的例子，参见源码[`tensorflow/core/kernels`](https://www.tensorflow.org/code/tensorflow/core/kernels/)。注意，有些内核的 CPU 版本在一个 `.cc` 文件中，其 GPU 版本在一个 `_gpu.cu.cc` 文件中，它们共享的代码则在一个 `.h` 文件中。
 
-You can implement different OpKernels and register one for CPU and another for
-GPU, just like you can [register kernels for different types](#polymorphism).
-There are several examples of kernels with GPU support in
-[`tensorflow/core/kernels/`](https://www.tensorflow.org/code/tensorflow/core/kernels/).
-Notice some kernels have a CPU version in a `.cc` file, a GPU version in a file
-ending in `_gpu.cu.cc`, and some code shared in common in a `.h` file.
 
-For example, the @{tf.pad} has
-everything but the GPU kernel in [`tensorflow/core/kernels/pad_op.cc`][pad_op].
-The GPU kernel is in
-[`tensorflow/core/kernels/pad_op_gpu.cu.cc`](https://www.tensorflow.org/code/tensorflow/core/kernels/pad_op_gpu.cu.cc),
-and the shared code is a templated class defined in
-[`tensorflow/core/kernels/pad_op.h`](https://www.tensorflow.org/code/tensorflow/core/kernels/pad_op.h).
-We organize the code this way for two reasons: it allows you to share common
-code among the CPU and GPU implementations, and it puts the GPU implementation
-into a separate file so that it can be compiled only by the GPU compiler.
+比如，@{tf.pad} 的 CPU 内核代码位于 [`tensorflow/core/kernels/pad_op.cc`](pad_op) 中，它的 GPU 内核在 [`tensorflow/core/kernels/pad_op_gpu.cu.cc`](https://www.tensorflow.org/code/tensorflow/core/kernels/pad_op_gpu.cu.cc) 中，而共享代码在 [`tensorflow/core/kernels/pad_op.h`](https://www.tensorflow.org/code/tensorflow/core/kernels/pad_op.h) 中。这种代码组织方式原因有二：GPU 和 CPU 实现科共享代码，GPU 代码放在单独的文件中可便于 GPU 编译器对它进行编译。
+需要注意的是，即使我们用的是 `pad` 操作的 GPU 内核版本，它仍然需要用到 CPU 内存中的 `"paddings"` 输入。为标记这种 CPU 上的输入或输出，在内核注册时添加一个 `HostMemory()` 调用，比如：
 
-One thing to note, even when the GPU kernel version of `pad` is used, it still
-needs its `"paddings"` input in CPU memory.  To mark that inputs or outputs are
-kept on the CPU, add a `HostMemory()` call to the kernel registration, e.g.:
 
 ```c++
 #define REGISTER_GPU_KERNEL(T)                         \
