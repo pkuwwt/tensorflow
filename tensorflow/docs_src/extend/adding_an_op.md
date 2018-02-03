@@ -1045,23 +1045,14 @@ $$\frac{\partial L}{\partial x}    = \frac{\partial L}{\partial y} \frac{\par
   参数:    op: 待求微分的 `zero_out` 操作，通过它，我们可以找到原操作的输入输出。    grad: 关于 `zero_out` 操作的输出的梯度。
   返回值:    关于 `zero_out` 输入的梯度。  """  to_zero = op.inputs[0]  shape = array_ops.shape(to_zero)  index = array_ops.zeros_like(shape)  first_grad = array_ops.reshape(grad, [-1])[0]  to_zero_grad = sparse_ops.sparse_to_dense([index], shape, first_grad, 0)  return [to_zero_grad]  # 只有一个张量的列表，因为我们只有一个输入```
 用 @{tf.RegisterGradient} 注册梯度函数的详情如下：
-* 对于只有一个输出的操作，梯度函数的参数为一个 @{tf.Operation} `op`，和一个 @{tf.Tensor} `grad`，然后它会根据张量[`op.inputs[i]`](../../api_docs/python/framework.md#Operation.inputs)、[`op.outputs[i]`](../../api_docs/python/framework.md#Operation.outputs)、及 `grad` 来构建新操作。关于任何属性的信息可通过 @{tf.Operation.get_attr} 来找到。
-* 如果操作有多个输出，其梯度函数的参数为 `op` 和 `grads`，其中 `grads` 是关于每个输出的梯度。此梯度函数的返回值为一个张量列表，表示的关于每个输入的梯度。
+  * 对于只有一个输出的操作，梯度函数的参数为一个 @{tf.Operation} `op`，和一个 @{tf.Tensor} `grad`，然后它会根据张量[`op.inputs[i]`](../../api_docs/python/framework.md#Operation.inputs)、[`op.outputs[i]`](../../api_docs/python/framework.md#Operation.outputs)、及 `grad` 来构建新操作。关于任何属性的信息可通过 @{tf.Operation.get_attr} 来找到。
+  * 如果操作有多个输出，其梯度函数的参数为 `op` 和 `grads`，其中 `grads` 是关于每个输出的梯度。此梯度函数的返回值为一个张量列表，表示的关于每个输入的梯度。
+  * 如果对某个输入没有良定义的梯度，比如用作指标的整数输入，相应的梯度应该为 `None`。比如，一个操作的一个输入是浮点型张量 `x`，
+另一个输入是一个整数指标 `i`，则梯度函数应该返回 `[x_grad, None]`。
+  * 如果一个操作根本就没有任何有意义的梯度，那么就没有必要注册梯度函数了。只要你不会用到操作的梯度，不注册也不会有什么问题。在有些情况下，一个操作没有良定义的梯度，但可能会参与到梯度计算中。在这种情况下，可以使用 `ops.NotDifferentiable` 来自动反向传播零值。
 
-* If there is no well-defined gradient for some input, such as for integer
-  inputs used as indices, the corresponding returned gradient should be
-  `None`.  For example, for an op taking a floating point tensor `x` and an
-  integer index `i`, the gradient function would `return [x_grad, None]`.
+注意，调用梯度函数时，只能访问到操作的数据流图，而不是张量数据本身。因而，所有梯度计算都基于其它 TensorFlow 操作，即必须在计算图执行时才能运行。
 
-* If there is no meaningful gradient for the op at all, you often will not have
-  to register any gradient, and as long as the op's gradient is never needed,
-  you will be fine. In some cases, an op has no well-defined gradient but can
-  be involved in the computation of the gradient. Here you can use
-  `ops.NotDifferentiable` to automatically propagate zeros backwards.
-
-Note that at the time the gradient function is called, only the data flow graph
-of ops is available, not the tensor data itself.  Thus, all computation must be
-performed using other tensorflow ops, to be run at graph execution time.
 
 ### C++ 中的形状函数
 
