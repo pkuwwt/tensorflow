@@ -1019,18 +1019,8 @@ REGISTER_OP("MultipleInsAndOuts")
 
 #### 为 GPU 设备编译内核
 
-Look at
-[cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc)
-for an example that uses a CUDA kernel to implement an op. The
-`tf_custom_op_library` accepts a `gpu_srcs` argument in which the list of source
-files containing the CUDA kernels (`*.cu.cc` files) can be specified. For use
-with a binary installation of TensorFlow, the CUDA kernels have to be compiled
-with NVIDIA's `nvcc` compiler. Here is the sequence of commands you can use to
-compile the
-[cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc)
-and
-[cuda_op_kernel.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cc)
-into a single dynamically loadable library:
+代码 [cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc) 中给出了使用 CUDA 内核实现操作的一个例子。`tf_custom_op_library` 接受一个 `gpu_srcs` 参数，它表示一个源码列表，即那些 CUDA 内核源码 (`*.cu.cc` 文件)。如果你使用的是 Tensorflow 的二进制安装，这些 CUDA 内核代码必须用 NVIDIA 的 `nvcc` 编译器进行编译。为了将 [cuda_op_kernel.cu.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cu.cc)和[cuda_op_kernel.cc](https://www.tensorflow.org/code/tensorflow/examples/adding_an_op/cuda_op_kernel.cc)这两个源码编译成一个动态加载库，你需要使用如下命令：
+
 
 ```bash
 nvcc -std=c++11 -c -o cuda_op_kernel.cu.o cuda_op_kernel.cu.cc \
@@ -1040,80 +1030,23 @@ g++ -std=c++11 -shared -o cuda_op_kernel.so cuda_op_kernel.cc \
 cuda_op_kernel.cu.o -I $TF_INC -I$TF_INC/external/nsync/public -fPIC -lcudart -L$TF_LIB -ltensorflow_framework
 ```
 
-`cuda_op_kernel.so` produced above can be loaded as usual in Python, using the
-`tf.load_op_library` function.
-
-Note that if your CUDA libraries are not installed in `/usr/local/lib64`,
-you'll need to specify the path explicitly in the second (g++) command above.
-For example, add `-L /usr/local/cuda-8.0/lib64/` if your CUDA is installed in
-`/usr/local/cuda-8.0`.
-
->   Note in some linux settings, additional options to `nvcc` compiling step are needed. Add `-D_MWAITXINTRIN_H_INCLUDED` to the `nvcc` command line to avoid errors from `mwaitxintrin.h`.
+通过 `tf.load_op_library` 函数，上述命令产生的 `cuda_op_kernel.so` 可以像通常的动态链接库一样在 Python 中加载。
+注意，如果 CUDA 库没有安装在 `/usr/local/lib64` 中，你需要在 上面第二个命令（g++）中显式指定其路径。比如，你的 CUDA 安装在 `/usr/local/cuda-8.0` 中，则需要在命令行中添加 `-L /usr/local/cuda-8.0/lib64`。
+>   另外，在某些 Linux 设置中，`nvcc` 编译步骤还需要额外的选项。比如，为避免 `mwaitxintrin.h` 中的错误，在 `nvcc` 命令行中添加 -D_MWAITXINTRIN_H_INCLUDED` 选项。
 
 ### 在 Python 中实现梯度计算
 
-Given a graph of ops, TensorFlow uses automatic differentiation
-(backpropagation) to add new ops representing gradients with respect to the
-existing ops (see
-@{$python/train#gradient_computation$Gradient Computation}).
-To make automatic differentiation work for new ops, you must register a gradient
-function which computes gradients with respect to the ops' inputs given
-gradients with respect to the ops' outputs.
-
-Mathematically, if an op computes \\(y = f(x)\\) the registered gradient op
-converts gradients \\(\partial L/ \partial y\\) of loss \\(L\\) with respect to
-\\(y\\) into gradients \\(\partial L/ \partial x\\) with respect to \\(x\\) via
-the chain rule:
-
-$$\frac{\partial L}{\partial x}
-    = \frac{\partial L}{\partial y} \frac{\partial y}{\partial x}
-    = \frac{\partial L}{\partial y} \frac{\partial f}{\partial x}.$$
-
-In the case of `ZeroOut`, only one entry in the input affects the output, so the
-gradient with respect to the input is a sparse "one hot" tensor.  This is
-expressed as follows:
-
-```python
-from tensorflow.python.framework import ops
-from tensorflow.python.ops import array_ops
-from tensorflow.python.ops import sparse_ops
-
-@ops.RegisterGradient("ZeroOut")
-def _zero_out_grad(op, grad):
-  """The gradients for `zero_out`.
-
-  Args:
-    op: The `zero_out` `Operation` that we are differentiating, which we can use
-      to find the inputs and outputs of the original op.
-    grad: Gradient with respect to the output of the `zero_out` op.
-
-  Returns:
-    Gradients with respect to the input of `zero_out`.
-  """
-  to_zero = op.inputs[0]
-  shape = array_ops.shape(to_zero)
-  index = array_ops.zeros_like(shape)
-  first_grad = array_ops.reshape(grad, [-1])[0]
-  to_zero_grad = sparse_ops.sparse_to_dense([index], shape, first_grad, 0)
-  return [to_zero_grad]  # List of one Tensor, since we have one input
-```
-
-Details about registering gradient functions with
-@{tf.RegisterGradient}:
-
-* For an op with one output, the gradient function will take an
-  @{tf.Operation} `op` and a
-  @{tf.Tensor} `grad` and build new ops
-  out of the tensors
-  [`op.inputs[i]`](../../api_docs/python/framework.md#Operation.inputs),
-  [`op.outputs[i]`](../../api_docs/python/framework.md#Operation.outputs), and `grad`.  Information
-  about any attrs can be found via
-  @{tf.Operation.get_attr}.
-
-* If the op has multiple outputs, the gradient function will take `op` and
-  `grads`, where `grads` is a list of gradients with respect to each output.
-  The result of the gradient function must be a list of `Tensor` objects
-  representing the gradients with respect to each input.
+给定一个由操作构成的计算图，TensorFlow 使用自动微分（反向传播）来添加新的操作，用于表示已有的操作的梯度（参见 @{$python/train#gradient_computation$梯度计算}）。为了让新实现的操作也支持这种自动微分，你必须为其注册一个梯度函数，用于在给定关于此操作输出的梯度的情况下计算出关于此操作输入的梯度。
+在数学上，如果一个操作计算 \\(y = f(x)\\)，为它注册的梯度操作将损失函数 \\(L\\) 关于 \\(y\\) 的梯度 \\(\partial L/ \partial y\\) 转化为关于 \\(x\\) 的梯度 \\(\partial L/ \partial x\\)，它使用的是链式法则：
+$$\frac{\partial L}{\partial x}    = \frac{\partial L}{\partial y} \frac{\partial y}{\partial x}    = \frac{\partial L}{\partial y} \frac{\partial f}{\partial x}.$$
+以 `ZeroOut` 为例，输入中只有一项会影响到输出，所以关于输入的梯度是一个稀疏的 "one hot" 张量。代码如下：
+```pythonfrom tensorflow.python.framework import opsfrom tensorflow.python.ops import array_opsfrom tensorflow.python.ops import sparse_ops
+@ops.RegisterGradient("ZeroOut")def _zero_out_grad(op, grad):  """ `zero_out` 的梯度
+  参数:    op: 待求微分的 `zero_out` 操作，通过它，我们可以找到原操作的输入输出。    grad: 关于 `zero_out` 操作的输出的梯度。
+  返回值:    关于 `zero_out` 输入的梯度。  """  to_zero = op.inputs[0]  shape = array_ops.shape(to_zero)  index = array_ops.zeros_like(shape)  first_grad = array_ops.reshape(grad, [-1])[0]  to_zero_grad = sparse_ops.sparse_to_dense([index], shape, first_grad, 0)  return [to_zero_grad]  # 只有一个张量的列表，因为我们只有一个输入```
+用 @{tf.RegisterGradient} 注册梯度函数的详情如下：
+* 对于只有一个输出的操作，梯度函数的参数为一个 @{tf.Operation} `op`，和一个 @{tf.Tensor} `grad`，然后它会根据张量[`op.inputs[i]`](../../api_docs/python/framework.md#Operation.inputs)、[`op.outputs[i]`](../../api_docs/python/framework.md#Operation.outputs)、及 `grad` 来构建新操作。关于任何属性的信息可通过 @{tf.Operation.get_attr} 来找到。
+* 如果操作有多个输出，其梯度函数的参数为 `op` 和 `grads`，其中 `grads` 是关于每个输出的梯度。此梯度函数的返回值为一个张量列表，表示的关于每个输入的梯度。
 
 * If there is no well-defined gradient for some input, such as for integer
   inputs used as indices, the corresponding returned gradient should be
