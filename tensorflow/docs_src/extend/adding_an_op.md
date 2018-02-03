@@ -1040,10 +1040,26 @@ cuda_op_kernel.cu.o -I $TF_INC -I$TF_INC/external/nsync/public -fPIC -lcudart -L
 在数学上，如果一个操作计算 \\(y = f(x)\\)，为它注册的梯度操作将损失函数 \\(L\\) 关于 \\(y\\) 的梯度 \\(\partial L/ \partial y\\) 转化为关于 \\(x\\) 的梯度 \\(\partial L/ \partial x\\)，它使用的是链式法则：
 $$\frac{\partial L}{\partial x}    = \frac{\partial L}{\partial y} \frac{\partial y}{\partial x}    = \frac{\partial L}{\partial y} \frac{\partial f}{\partial x}.$$
 以 `ZeroOut` 为例，输入中只有一项会影响到输出，所以关于输入的梯度是一个稀疏的 "one hot" 张量。代码如下：
-```pythonfrom tensorflow.python.framework import opsfrom tensorflow.python.ops import array_opsfrom tensorflow.python.ops import sparse_ops
-@ops.RegisterGradient("ZeroOut")def _zero_out_grad(op, grad):  """ `zero_out` 的梯度
-  参数:    op: 待求微分的 `zero_out` 操作，通过它，我们可以找到原操作的输入输出。    grad: 关于 `zero_out` 操作的输出的梯度。
-  返回值:    关于 `zero_out` 输入的梯度。  """  to_zero = op.inputs[0]  shape = array_ops.shape(to_zero)  index = array_ops.zeros_like(shape)  first_grad = array_ops.reshape(grad, [-1])[0]  to_zero_grad = sparse_ops.sparse_to_dense([index], shape, first_grad, 0)  return [to_zero_grad]  # 只有一个张量的列表，因为我们只有一个输入```
+```python
+from tensorflow.python.framework import ops
+from tensorflow.python.ops import array_ops
+from tensorflow.python.ops import sparse_ops
+@ops.RegisterGradient("ZeroOut")
+def _zero_out_grad(op, grad):  
+    """ `zero_out` 的梯度
+    参数:    
+      op: 待求微分的 `zero_out` 操作，通过它，我们可以找到原操作的输入输出。    
+      grad: 关于 `zero_out` 操作的输出的梯度。
+    返回值:    
+      关于 `zero_out` 输入的梯度。  
+    """  
+    to_zero = op.inputs[0]  
+    shape = array_ops.shape(to_zero)  
+    index = array_ops.zeros_like(shape)  
+    first_grad = array_ops.reshape(grad, [-1])[0]  
+    to_zero_grad = sparse_ops.sparse_to_dense([index], shape, first_grad, 0)  
+    return [to_zero_grad]  # 只有一个张量的列表，因为我们只有一个输入
+```
 用 @{tf.RegisterGradient} 注册梯度函数的详情如下：
   * 对于只有一个输出的操作，梯度函数的参数为一个 @{tf.Operation} `op`，和一个 @{tf.Tensor} `grad`，然后它会根据张量[`op.inputs[i]`](../../api_docs/python/framework.md#Operation.inputs)、[`op.outputs[i]`](../../api_docs/python/framework.md#Operation.outputs)、及 `grad` 来构建新操作。关于任何属性的信息可通过 @{tf.Operation.get_attr} 来找到。
   * 如果操作有多个输出，其梯度函数的参数为 `op` 和 `grads`，其中 `grads` 是关于每个输出的梯度。此梯度函数的返回值为一个张量列表，表示的关于每个输入的梯度。
@@ -1056,16 +1072,9 @@ $$\frac{\partial L}{\partial x}    = \frac{\partial L}{\partial y} \frac{\par
 
 ### C++ 中的形状函数
 
-The TensorFlow API has a feature called "shape inference" that provides
-information about the shapes of tensors without having to execute the
-graph. Shape inference is supported by "shape functions" that are registered for
-each op type in the C++ `REGISTER_OP` declaration, and perform two roles:
-asserting that the shapes of the inputs are compatible during graph
-construction, and specifying the shapes for the outputs.
+TensorFlow API 有一个功能叫做"形状推理"，可以无需执行计算图而获得张量的形状信息。形状推理是由"形状函数"来支撑的，每个操作类型都会在其 C++ `REGISTER_OP` 声明中注册形状函数，它们有两种作用：在计算图的构造中声明输入的形状是兼容的，为输出指定形状。
 
-Shape functions are defined as operations on the
-`shape_inference::InferenceContext` class. For example, in the shape function
-for ZeroOut:
+形状函数定义为 `shape_inference::InferenceContext` 类中的操作。比如，下面是 ZeroOut 的形状函数：
 
 ```c++
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
@@ -1074,12 +1083,9 @@ for ZeroOut:
     });
 ```
 
-`c->set_output(0, c->input(0));` declares that the first output's shape should
-be set to the first input's shape. If the output is selected by its index as in the above example, the second parameter of `set_output` should be a `ShapeHandle` object. You can create an empty `ShapeHandle` object by its default constructor. The `ShapeHandle` object for an input with index `idx` can be obtained by `c->input(idx)`.
+`c->set_output(0, c->input(0));` 声明第一个输出的形状必须为第一个输入的形状。上述例子通过索引来选择输出，`set_output` 的第二个参数应该是一个 `ShapeHandle` 对象。我们可以通过默认构造函数来创建一个空的 `ShapeHandle` 对象。索引为 `idx` 的输入的 `ShapeHandle` 对象可通过 `c->input(idx)` 来获得。
 
-There are a number of common shape functions
-that apply to many ops, such as `shape_inference::UnchangedShape` which can be
-found in [common_shape_fns.h](https://www.tensorflow.org/code/tensorflow/core/framework/common_shape_fns.h) and used as follows:
+TensorFlow 已经提供了大量的通用形状函数，可适用于许多操作，比如 `shape_inference::UnchangedShape` 可在源码 [common_shape_fns.h](https://www.tensorflow.org/code/tensorflow/core/framework/common_shape_fns.h) 中找到，其用法如下：
 
 ```c++
 REGISTER_OP("ZeroOut")
@@ -1088,9 +1094,7 @@ REGISTER_OP("ZeroOut")
     .SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
 ```
 
-A shape function can also constrain the shape of an input. For the version of
-[`ZeroOut` with a vector shape constraint](#validation), the shape function
-would be as follows:
+一个形状函数也可用于约束输入的形状。对于 [具有矢量形状约束的 `ZeroOut` 版本](#validation)，其形状函数定义如下：
 
 ```c++
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
@@ -1101,15 +1105,9 @@ would be as follows:
     });
 ```
 
-The `WithRank` call validates that the input shape `c->input(0)` has
-a shape with exactly one dimension (or if the input shape is unknown,
-the output shape will be a vector with one unknown dimension).
+`WithRank` 函数验证了输入形状 `c->input(0)` 的形状恰好只有一个维度（或者如果输入形状未知，输出形状为维度未知的矢量）。
 
-If your op is [polymorphic with multiple inputs](#polymorphism), you can use
-members of `InferenceContext` to determine the number of shapes to check, and
-`Merge` to validate that the shapes are all compatible (alternatively, access
-attributes that indicate the lengths, with `InferenceContext::GetAttr`, which
-provides access to the attributes of the op).
+对于[具有多个输入的多态](#多态)操作，可以使用 `InferenceContext` 的成员函数来确定需要检查的形状数目，并用 `Merge` 成员函数来验证这些形状都是兼容的（或者用 `InferenceContext::GetAttr` 访问表示长度的属性，此函数可以访问操作的属性）。
 
 ```c++
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
@@ -1124,21 +1122,10 @@ provides access to the attributes of the op).
     });
 ```
 
-Since shape inference is an optional feature, and the shapes of tensors may vary
-dynamically, shape functions must be robust to incomplete shape information for
-any of the inputs. The `Merge` method in [`InferenceContext`](https://www.tensorflow.org/code/tensorflow/core/framework/shape_inference.h)
-allows the caller to assert that two shapes are the same, even if either
-or both of them do not have complete information. Shape functions are defined
-for all of the core TensorFlow ops and provide many different usage examples.
+因为形状推理是一个可选的功能，且张量的形状会动态改变，形状函数必须能够处理任意输入可能的形状信息不完整的情况。
+[`InferenceContext`](https://www.tensorflow.org/code/tensorflow/core/framework/shape_inference.h) 的 `Merge` 方法允许在两个形状信息不完整的情况下（至少有一个不完整）断言它们是相同的。TensorFlow 的所有核心操作都定义有形状函数，它也提供了很多不同的使用示例。
 
-The `InferenceContext` class has a number of functions that can be used to
-define shape function manipulations.  For example, you can validate that a
-particular dimension has a very specific value using `InferenceContext::Dim` and
-`InferenceContext::WithValue`; you can specify that an output dimension is the
-sum / product of two input dimensions using `InferenceContext::Add` and
-`InferenceContext::Multiply`. See the `InferenceContext` class for
-all of the various shape manipulations you can specify. The following example sets
-shape of the first output to (n, 3), where first input has shape (n, ...)
+`InferenceContext` 类中有很多函数可用于定义形状函数的控制方法。比如，我们可以用 `InferenceContext::Dim` 和 `InferenceContext::WithValue` 来验证一个特定的维度是否有一个特定的值；我们还可以用 `InferenceContext::Add` 和 `InferenceContext::Multiply` 指定输出维度为两个输入维度的和 / 乘积。参见 `InferenceContex` 类的定义中所有可用的形状操作方法。下面的例子将第一个输出的形状设置为 (n,3)，将第一个输入的形状设置为 (n,...)。
 
 ```c++
 .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
@@ -1147,16 +1134,7 @@ shape of the first output to (n, 3), where first input has shape (n, ...)
 });
 ```
 
-If you have a complicated shape function, you should consider adding a test for
-validating that various input shape combinations produce the expected output
-shape combinations.  You can see examples of how to write these tests in some
-our
-[core ops tests](https://www.tensorflow.org/code/tensorflow/core/ops/array_ops_test.cc).
-(The syntax of `INFER_OK` and `INFER_ERROR` are a little cryptic, but try to be
-compact in representing input and output shape specifications in tests.  For
-now, see the surrounding comments in those tests to get a sense of the shape
-string specification).
-
+对于复杂的形状函数，应该考虑添加一个测试，来验证多个输入形状组合可产生预期的输出形状组合。这种测试的编写方法参见源码 [core ops tests](https://www.tensorflow.org/code/tensorflow/core/ops/array_ops_test.cc)。（`INFER_OK` 和 `INFER_ERROR` 的语法会让人感觉有点神秘，不过还是在测试中尽量让表示输入输出形状的规范简洁一些。目前，可以在已有的测试用看看注释，了解如何编写形状的规范。）
 
 [core-array_ops]:https://www.tensorflow.org/code/tensorflow/core/ops/array_ops.cc
 [python-user_ops]:https://www.tensorflow.org/code/tensorflow/python/user_ops/user_ops.py
