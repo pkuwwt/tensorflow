@@ -10,7 +10,7 @@
 *   文件格式：我们使用 **读写器** 操作从一个文档中读取 **记录**(它可以是任意的字符串)。
 *   记录格式：我们通过 TensorFlow 使用解码器或解析操作将一个字符记录转换成 tensor 可用的对象。
 
-例如，为了读入一个 [CSV file](https://en.wikipedia.org/wiki/Comma-separated_values),我们使用 @{tf.TextLineReader$一个文本文件的读写器} 然再使用 @{tf.decode_csv$从文本中解析出 CSV 数据}。
+例如，为了读入一个 [CSV file](https://en.wikipedia.org/wiki/Comma-separated_values),我们使用 @{tf.TextLineReader$a Reader for text files} 然后再使用 @{tf.decode_csv$an Op that parses CSV data from a line of text}。
 
 [TOC]
 
@@ -18,17 +18,15 @@
 
 `Reader` 用于从文件中读取记录。TensorFlow 中已经有一些预建好的读写器操作样例：
 
-*   @{tf.TFRecordReader}([`kernels/tf_record_reader_op.cc` 源码](https://www.tensorflow.org/code/tensorflow/core/kernels/tf_record_reader_op.cc))
-*   @{tf.FixedLengthRecordReader}
-    ([`kernels/fixed_length_record_reader_op.cc` 源码](https://www.tensorflow.org/code/tensorflow/core/kernels/fixed_length_record_reader_op.cc))
-*   @{tf.TextLineReader}
-    ([`kernels/text_line_reader_op.cc` 源码](https://www.tensorflow.org/code/tensorflow/core/kernels/text_line_reader_op.cc))
+*   @{tf.TFRecordReader} ([source in `kernels/tf_record_reader_op.cc`](https://www.tensorflow.org/code/tensorflow/core/kernels/tf_record_reader_op.cc))
+*   @{tf.FixedLengthRecordReader} ([source in `kernels/fixed_length_record_reader_op.cc`](https://www.tensorflow.org/code/tensorflow/core/kernels/fixed_length_record_reader_op.cc))
+*   @{tf.TextLineReader} ([source in `kernels/text_line_reader_op.cc`](https://www.tensorflow.org/code/tensorflow/core/kernels/text_line_reader_op.cc))
 
 这些读写器暴露的都是一样的接口，只有它们的构建函数不相同。最重要的方法是 `read`。它需要一个队列参数，用于在需要文件名时读取文件名（例如：当 `read` 操作第一次运行，或者前一次 `read` 从一个文件中读取最后一条记录）。它会产生两个纯量的 tensor：一个字符类型的键和一个字符类型的值。
 
 要创建一个叫 `SomeReader` 新的读写器，你需要：
 
-1.  在 C++中， 定义一个 [`tensorflow::ReaderBase`](https://www.tensorflow.org/code/tensorflow/core/framework/reader_base.h) 的子类 `SomeReader`。
+1.  在 C++中，定义一个 [`tensorflow::ReaderBase`](https://www.tensorflow.org/code/tensorflow/core/framework/reader_base.h) 的子类 `SomeReader`。
 2.  在 C++ 中，使用 `"SomeReader"` 注册一个新的读写器操作和内核。
 3.  在 Python 中，定义一个 @{tf.ReaderBase} 的子类 `SomeReader`。
 
@@ -53,7 +51,7 @@ Status ReadLocked(string* key, string* value, bool* produced, bool* at_end)
 *   `*value`：记录的内容。
 *   `*produced`：设定为 `true`。
 
-如果你到达了文件结尾（EOF），设定 `*at_end` 为 `true`。在任何情况下，返回 `Status::OK()`。如果有一个错误，直接使用  [`tensorflow/core/lib/core/errors.h`](https://www.tensorflow.org/code/tensorflow/core/lib/core/errors.h) 中的一个助手函数返回它，并且不需要定义其他参数。
+如果你到达了文件结尾（EOF），设定 `*at_end` 为 `true`。在任何情况下，返回 `Status::OK()`。如果有一个错误，直接使用 [`tensorflow/core/lib/core/errors.h`](https://www.tensorflow.org/code/tensorflow/core/lib/core/errors.h) 中的一个助手函数返回它，并且不需要定义其他参数。
 
 下一步，你要创建真实的读写器操作。如果你熟悉 @{$adding_an_op$the adding an op how-to} 会简单很多，主要步骤是：
 
@@ -147,9 +145,7 @@ ops.NotDifferentiable("SomeReader")
 
 对于解析记录有用的操作样例：
 
-*   @{tf.parse_single_example}
-    (and
-    @{tf.parse_example})
+*   @{tf.parse_single_example} (and @{tf.parse_example})
 *   @{tf.decode_csv}
 *   @{tf.decode_raw}
 
