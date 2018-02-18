@@ -49,7 +49,7 @@ Google 在 x64 和 ARM64 架构下测度了 XLA。
 *   [xla::Compiler](https://www.tensorflow.org/code/tensorflow/compiler/xla/service/compiler.h):
     这个类封装了一个 HLO 计算到一个 `xla::Executable` 的编译。
 *   [`xla::Executable`](https://www.tensorflow.org/code/tensorflow/compiler/xla/service/executable.h):
-    怕个类用于在目标平台上启动一个编译后的计算过程。
+    这个类用于在目标平台上启动一个编译后的计算过程。
 *   [`xla::TransferManager`](https://www.tensorflow.org/code/tensorflow/compiler/xla/service/transfer_manager.h):
-    这个类让后端提供目标机制，用于从设备内存句柄构造出 XLA 字面量数据。换句话说，它帮助封装了主 CPU 与设备之间的数据传输。
+    这个类让后端提供针对目标平台的机制，用于从设备内存句柄构造出 XLA 字面量数据。换句话说，它帮助封装了主 CPU 与设备之间的数据传输。
 
