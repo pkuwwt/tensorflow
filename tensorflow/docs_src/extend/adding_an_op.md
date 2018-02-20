@@ -6,7 +6,7 @@
 中的用法，两种版本之间是有可能存在变动的。
 
 如果你想要创建一个在已有 TensorFlow 库中不存在的操作，我们建议你先从 Python 入手，即写一个已有 Python 操作或函数的复合操作。
-如果这样不可行，你就需要创建一个定制的 C++ 操作了。下面是你可能需要这样做的一些理由：
+如果这样不可行，你可以定制一个 C++ 操作。下面是你可能需要这样做的一些理由：
 
 *   将你的操作表示成复合操作不太容易或不可能。
 *   已有基本操作的复合操作效率不高。
@@ -33,8 +33,8 @@
 
 编写新操作代码前，你需要：
 
-*   熟悉 C++
-*   必须安装有 @{$install$TensorFlow 二进制代码}，或必须下载有 @{$install_sources$TensorFlow 源码}，并能够构建
+*   熟悉 C++ 。
+*   必须安装有 @{$install$TensorFlow 二进制代码}，或必须下载有 @{$install_sources$TensorFlow 源码}，并能够构建。
 
 [TOC]
 
@@ -125,7 +125,7 @@ REGISTER_KERNEL_BUILDER(Name("ZeroOut").Device(DEVICE_CPU), ZeroOutOp);
 
 ### 多线程 CPU 内核
 
-为了编写一个多线程 CPU 内核，可使用́
+为了编写一个多线程 CPU 内核，可使用
 [`work_sharder.h`](https://www.tensorflow.org/code/tensorflow/core/util/work_sharder.h)
 中的 Shared 函数。在 intro-op 线程模式下，此函数让不同的线程共享同一个计算函数（参见 
 [`config.proto`](https://www.tensorflow.org/code/tensorflow/core/protobuf/config.proto) 中定义的 intra_op_parallelism_threads  模式）。
@@ -200,7 +200,7 @@ class ExampleOp : public OpKernel {
     OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(),
                                                      &output_tensor));
 
-    // 计算
+    // 执行计算
     OP_REQUIRES(context, input_tensor.NumElements() <= tensorflow::kint32max,
                 errors::InvalidArgument("Too many elements in tensor"));
     ExampleFunctor<Device, T>()(
@@ -211,8 +211,8 @@ class ExampleOp : public OpKernel {
   }
 };
 
-// 注册 CPU 上的内核́́
-#define REGISTER_CPU(T)                                          \
+// 注册 CPU 上的内核
+#define REGISTER_CPU(T)                                          \
   REGISTER_KERNEL_BUILDER(                                       \
       Name("Example").Device(DEVICE_CPU).TypeConstraint<T>("T"), \
       ExampleOp<CPUDevice, T>);
