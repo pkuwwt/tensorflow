@@ -243,7 +243,7 @@ using namespace tensorflow;
 
 using GPUDevice = Eigen::GpuDevice;
 
-// 定义 CUDA 内核́
+// 定义 CUDA 内核
 template <typename T>
 __global__ void ExampleCudaKernel(const int size, const T* in, T* out) {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < size;
