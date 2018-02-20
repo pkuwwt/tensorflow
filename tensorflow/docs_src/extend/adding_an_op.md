@@ -27,14 +27,14 @@
     从操作的注册中可以产生一个默认的包装器，它可以直接使用，或加入。
 4.  编写一个函数来计算此操作的梯度（可选）。
 5.  测试此操作。为方便起见，我们通常在 Python 中测试，但也你可以在 C++ 中测试。如果你定义了梯度，
-    你可以用 Python 的 @{tf.test.compute_gradient_error$梯度检查器} 来验证。参见脚本 
+    你可以用 Python 的 @{tf.test.compute_gradient_error$gradient checker} 来验证。参见脚本 
      [`relu_op_test.py`](https://www.tensorflow.org/code/tensorflow/python/kernel_tests/relu_op_test.py)，
      它提供了一个例子，展示如何测试类似于 Relu 的算子的前向函数及梯度。
 
 编写新操作代码前，你需要：
 
 *   熟悉 C++ 。
-*   必须安装有 @{$install$TensorFlow 二进制代码}，或必须下载有 @{$install_sources$TensorFlow 源码}，并能够构建。
+*   必须安装有 @{$install$TensorFlow binary}，或必须下载有 @{$install_sources$downloaded TensorFlow source}，并能够构建。
 
 [TOC]
 
@@ -455,7 +455,7 @@ REGISTER\_OP("ZeroOut")
     .Output("zeroed: int32");
 </code></pre>
 
-（注意，[属性类型](#attr_types)与输入输出的@{tf.DType$张量类型}是不一样的。）
+（注意，[属性类型](#attr_types)与输入输出的 @{tf.DType$tensor types} 是不一样的。）
 
 你实现的内核可以在构造函数中通过 `context` 参数来访问属性：
 <pre class="prettyprint"><code class="lang-cpp">
@@ -526,7 +526,7 @@ class ZeroOutOp : public OpKernel {
   ```
 
 * `{<type1>, <type2>}`: 属性类型为 `type`，表示取值是 `<type1>` 类型或 `<type2>` 类型二者之一，
-  其中 `<type1>` 和 `<type2>` 为两种@{tf.DType$张量类型}。同样，你也不需要指定属性类型为 `type`，
+  其中 `<type1>` 和 `<type2>` 为两种 @{tf.DType$tensor types}。同样，你也不需要指定属性类型为 `type`，
   因为这个信息是可以从 `{...}` 这个张量类型列表推断出来的。比如，下面的例子中属性 `t` 必须是 `int32`、
   `float` 或 `bool` 中的一种类型：
 
@@ -613,7 +613,7 @@ REGISTER_OP("AttrDefaultExampleForAllTypes")
    .Attr("l_int: list(int) = [2, 3, 5, 7]");
 ```
 
-注意：若值类型为 `type`，则使用 @{tf.DType$类型的 `DT_*` 名称}。
+注意：若值类型为 `type`，则使用 @{tf.DType$the `DT_*` names for the types}。
 
 #### 多态
 
@@ -905,7 +905,7 @@ REGISTER_OP("MultipleInsAndOuts")
 
 * `<type>`：支持的输入类型，比如 `float`、`int32`、`string`。这个表达式指定了 `type` 类型的单个张量。
 
-  参见 @{tf.DType$支持的张量类型列表}。
+  参见 @{tf.DType$the list of supported Tensor types}。
 
   ```c++
   REGISTER_OP("BuiltInTypesExample")
@@ -941,7 +941,7 @@ REGISTER_OP("MultipleInsAndOuts")
 
   注意，输出 `out` 中的张量的类型和数目与输入 `in` 是一样的，因为它们都是 `T` 类型。
 
-* 相同类型的张量序列：`<number> * <type>`, 其中 `<number>` 为类型为 `int` 的一个[属性](#属性)。`<type>` 可以是 @{tf.DType$诸如 `int32` 或 `float` 这样的特定类型} 或 类型为 `type` 的一个属性的名称。第一种情况中，操作可接受 `int32` 张量的列表，示例如下：
+* 相同类型的张量序列：`<number> * <type>`, 其中 `<number>` 为类型为 `int` 的一个[属性](#属性)。`<type>` 可以是 @{tf.DType$a specific type like `int32` or `float`} 或 类型为 `type` 的一个属性的名称。第一种情况中，操作可接受 `int32` 张量的列表，示例如下：
 
   ```c++
   REGISTER_OP("Int32SequenceExample")
@@ -968,7 +968,7 @@ REGISTER_OP("MultipleInsAndOuts")
 
 假设你定制一个很好的操作，并分享给他人，让你的客户开心地使用了。然而，你还想要进一步修改这个操作。
 
-一般情况下，对已有的已上线的规范进行修改需要考虑后向兼容性：对一个操作的规范进行修改必须保证由旧规范构造出来的序列化 `GraphDef` 协议缓存仍然能用。`GraphDef` 的兼容性的细节参考 @{$version_compat#compatibility_of_graphs_and_checkpoints$文档}。
+一般情况下，对已有的已上线的规范进行修改需要考虑后向兼容性：对一个操作的规范进行修改必须保证由旧规范构造出来的序列化 `GraphDef` 协议缓存仍然能用。`GraphDef` 的兼容性的细节参考 @{$version_compat#compatibility_of_graphs_and_checkpoints$described here}。
 
 保持后向兼容性的方法有很多，下面列出了一些：
 
@@ -997,7 +997,7 @@ REGISTER_OP("MultipleInsAndOuts")
 
 安全和不安全修改的完整列表可以在源码 [`tensorflow/core/framework/op_compatibility_test.cc`](https://www.tensorflow.org/code/tensorflow/core/framework/op_compatibility_test.cc) 中找到。如果你无法在兼容要求下修改此操作，那么最好是另起炉灶，创建一个新的操作，取一个新的名字，来表示你的新的语义。
 
-还要注意的是，除了维持 `GraphDef` 的兼容性，生成的 Python 代码还是有可能变得与旧的调用它的代码不兼容。因而，为保持兼容性，Python API 的修改要非常小心，最好是手写 Python 包装代码，而且只在旧的接口函数的最后面加上新的可选参数。一般而言，不兼容的改变只会发生在 TensorFlow 的大的版本变动时，而且必须遵从 @{$version_compat#compatibility_of_graphs_and_checkpoints$`GraphDef` 版本语义}。
+还要注意的是，除了维持 `GraphDef` 的兼容性，生成的 Python 代码还是有可能变得与旧的调用它的代码不兼容。因而，为保持兼容性，Python API 的修改要非常小心，最好是手写 Python 包装代码，而且只在旧的接口函数的最后面加上新的可选参数。一般而言，不兼容的改变只会发生在 TensorFlow 的大的版本变动时，而且必须遵从 @{$version_compat#compatibility_of_graphs_and_checkpoints$`GraphDef` version semantics}。
 
 
 ### GPU 支持
@@ -1036,7 +1036,7 @@ cuda_op_kernel.cu.o -I $TF_INC -I$TF_INC/external/nsync/public -fPIC -lcudart -L
 
 ### 在 Python 中实现梯度计算
 
-给定一个由操作构成的计算图，TensorFlow 使用自动微分（反向传播）来添加新的操作，用于表示已有的操作的梯度（参见 @{$python/train#gradient_computation$梯度计算}）。为了让新实现的操作也支持这种自动微分，你必须为其注册一个梯度函数，用于在给定关于此操作输出的梯度的情况下计算出关于此操作输入的梯度。
+给定一个由操作构成的计算图，TensorFlow 使用自动微分（反向传播）来添加新的操作，用于表示已有的操作的梯度（参见 @{$python/train#gradient_computation$Gradient Computation})）。为了让新实现的操作也支持这种自动微分，你必须为其注册一个梯度函数，用于在给定关于此操作输出的梯度的情况下计算出关于此操作输入的梯度。
 在数学上，如果一个操作计算 \\(y = f(x)\\)，为它注册的梯度操作将损失函数 \\(L\\) 关于 \\(y\\) 的梯度 \\(\partial L/ \partial y\\) 转化为关于 \\(x\\) 的梯度 \\(\partial L/ \partial x\\)，它使用的是链式法则：
 $$\frac{\partial L}{\partial x}    = \frac{\partial L}{\partial y} \frac{\partial y}{\partial x}    = \frac{\partial L}{\partial y} \frac{\partial f}{\partial x}.$$
 以 `ZeroOut` 为例，输入中只有一项会影响到输出，所以关于输入的梯度是一个稀疏的 "one hot" 张量。代码如下：
